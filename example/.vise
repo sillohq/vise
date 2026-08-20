@@ -1,0 +1,15 @@
+# The example application's configuration.
+#
+#   cd example
+#   vise serve
+
+[app]
+target = "app.main:app"
+
+[server]
+port = 8000
+
+[recorder]
+# Lower than the default, so the ring turns over while somebody is watching it.
+buffer = 500
+slow_request_ms = 100

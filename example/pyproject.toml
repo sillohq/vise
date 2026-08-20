@@ -1,0 +1,2 @@
+[tool.sillo]
+app = "app.main:app"
