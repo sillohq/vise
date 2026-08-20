@@ -1,0 +1,105 @@
+/*
+ * The Sillo palette, as it is declared on sillo.build.
+ *
+ * These are the same tokens the website's Tailwind theme defines, written as
+ * custom properties because this interface does not ship Tailwind — a dashboard
+ * that has to be a self-contained bundle inside a Python wheel should not carry
+ * a CSS framework to draw fourteen tables.
+ *
+ * Every value here is copied rather than approximated. `#fc0345` is the brand
+ * red, `#050505` is the page, and the surface/border/muted scale is the one the
+ * mockups use. Where the interface and the website disagree about a colour, the
+ * website is right and this file is wrong.
+ */
+
+:root {
+  --primary: #fc0345;
+  --primary-bright: #ff285f;
+  --primary-dark: #c00236;
+
+  --bg: #050505;
+  --elevated: #0b0b0c;
+  --surface: #111112;
+  --surface-2: #171719;
+
+  --text: #f7f7f5;
+  --muted: #8b8b91;
+  --dimmed: #55555b;
+
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* The tone palette. Named for what a number means, never for its colour, so
+     that the one rule the tiles follow is visible in the stylesheet too. */
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: var(--primary);
+  --info: #38bdf8;
+
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#foreman {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* A dark interface with light scrollbars looks like two applications. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dimmed);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
