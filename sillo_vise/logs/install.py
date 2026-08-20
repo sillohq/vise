@@ -54,9 +54,9 @@ LOG_LEVELS = {
     "critical": logging.CRITICAL,
 }
 
-#: uvicorn's own loggers. Silenced rather than reformatted: everything they
-#: report that matters is either in the banner or in the access line.
-_UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
+#: uvicorn's loggers that are silenced outright. ``uvicorn.error`` is not among
+#: them — see :func:`silence_uvicorn`.
+_SILENCED_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.asgi")
 
 #: Loggers the framework attaches handlers to itself. ``sillo.logging``'s
 #: ``create_logger`` puts a queue handler straight onto a named logger and
@@ -68,23 +68,40 @@ _FRAMEWORK_LOGGERS = ("sillo",)
 
 
 def silence_uvicorn() -> None:
-    """Stop uvicorn's loggers writing anything.
+    """Stop uvicorn's loggers writing anything of their own.
 
     ``log_config=None`` prevents uvicorn *installing* handlers, but the loggers
-    still exist and still propagate to the root — so a project that configured
-    the root logger would get uvicorn's lines through it, in the root's format,
-    which is exactly the double-logging this is meant to prevent.
+    still exist, and quieting them is subtler than it looks.
+
+    The obvious move — clear the handlers and set ``propagate = False`` on every
+    uvicorn logger — is wrong, and wrong in a way that produces the exact output
+    it was meant to prevent. Propagation walks the ancestor chain, so
+    ``uvicorn.error`` reaches the root *through* ``uvicorn``; stopping the walk
+    at the parent means a record finds no handler anywhere, and Python falls
+    back to :data:`logging.lastResort`, which prints the bare message to stderr
+    in no format at all. That is where the raw "StatReload detected changes"
+    line came from.
+
+    So nothing here breaks propagation. Levels do the work instead — a logger's
+    level gates the records logged *on* it, not the records passing through it:
+
+    * ``uvicorn``, ``uvicorn.access`` and ``uvicorn.asgi`` are set to CRITICAL,
+      so their own lines are dropped while their children's still pass through.
+    * ``uvicorn.error`` is set to ERROR. "Address already in use" is logged
+      there at ERROR and reaches the root in vise's format, which is exactly
+      what somebody whose port is taken needs. The reloader's "detected
+      changes" chatter is a WARNING and falls below the bar.
     """
-    for name in _UVICORN_LOGGERS:
+    for name in _SILENCED_LOGGERS:
         logger = logging.getLogger(name)
         logger.handlers.clear()
-        logger.propagate = False
-        # Not disabled outright: a failure to bind the port is reported through
-        # uvicorn.error, and swallowing that would turn a clear message into a
-        # process that exits with no explanation.
-        logger.setLevel(
-            logging.WARNING if name == "uvicorn.error" else logging.CRITICAL
-        )
+        logger.propagate = True
+        logger.setLevel(logging.CRITICAL)
+
+    errors = logging.getLogger("uvicorn.error")
+    errors.handlers.clear()
+    errors.propagate = True
+    errors.setLevel(logging.ERROR)
 
 
 def consolidate_framework_logging() -> None:

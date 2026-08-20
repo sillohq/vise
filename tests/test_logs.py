@@ -176,20 +176,39 @@ class TestJSONFormatter:
 
 
 class TestUvicorn:
-    def test_its_loggers_are_silenced(self):
+    def test_its_handlers_are_removed(self):
         logging.getLogger("uvicorn.access").addHandler(logging.NullHandler())
         silence_uvicorn()
         assert logging.getLogger("uvicorn.access").handlers == []
 
-    def test_they_no_longer_propagate(self):
+    def test_its_own_lines_are_dropped_by_level(self):
         silence_uvicorn()
-        assert logging.getLogger("uvicorn").propagate is False
+        assert logging.getLogger("uvicorn").level == logging.CRITICAL
+
+    def test_propagation_is_left_alone(self):
+        """Breaking the chain at the parent means a child's record finds no
+        handler anywhere and Python falls back to lastResort — which prints the
+        bare message in no format at all. That is the output this was meant to
+        prevent."""
+        silence_uvicorn()
+        assert logging.getLogger("uvicorn").propagate is True
 
     def test_a_bind_failure_can_still_be_reported(self):
         """uvicorn.error is where "address already in use" arrives. Silencing
         it outright turns a clear message into an unexplained exit."""
         silence_uvicorn()
-        assert logging.getLogger("uvicorn.error").level <= logging.WARNING
+        assert logging.getLogger("uvicorn.error").level <= logging.ERROR
+
+    def test_the_reloaders_chatter_falls_below_the_bar(self):
+        silence_uvicorn()
+        assert logging.getLogger("uvicorn.error").level > logging.WARNING
+
+    def test_an_error_reaches_a_root_handler(self):
+        stream = io.StringIO()
+        install_logging(LogConfig(), stream=stream, force=True)
+        logging.getLogger("uvicorn.error").error("[Errno 48] Address already in use")
+        assert "Address already in use" in strip_ansi(stream.getvalue())
+        logging.getLogger().handlers.clear()
 
 
 class TestInstallation:

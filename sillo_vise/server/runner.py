@@ -148,10 +148,17 @@ class Server:
                 reload_dirs=list(server.watch) if server.reload else None,
                 workers=server.workers if not server.reload else None,
                 root_path=server.root_path,
-                # uvicorn is told to install nothing. A custom log_config would
-                # leave it owning the configuration; this takes it away.
+                # uvicorn is told to install nothing. A custom log_config
+                # would leave it owning the configuration; this takes it away.
                 log_config=None,
                 access_log=False,
+                # `Config` sets the level on uvicorn's loggers itself, after
+                # `silence_uvicorn` has already set them — so uvicorn wins and
+                # this is where the bar is actually decided. `error` keeps
+                # "address already in use" visible, in vise's format, and drops
+                # the reloader's "detected changes" line, which is a WARNING and
+                # which vise reports itself with the panel count attached.
+                log_level="error",
             )
         except KeyboardInterrupt:  # pragma: no cover - a person pressed ^C
             self.stop("interrupted")
@@ -200,6 +207,13 @@ def serve(config: ViseConfig, target: str) -> int:
         # The worker imports the application and instruments it. Nothing is
         # imported here: doing so would double every import side effect the
         # project has, and would still be thrown away.
+        #
+        # The logging is installed in this process as well as in the worker,
+        # because the *reloader* runs here — and its "StatReload detected
+        # changes" line would otherwise arrive through the root logger's
+        # last-resort handler, in the one format vise exists to replace.
+        install_logging(config.logs, force=True)
+
         prepare_environment(target, config)
         return server.run(FACTORY)
 

@@ -18,10 +18,13 @@ one channel a re-executed process definitely inherits.
 
 from __future__ import annotations
 
+import atexit
+import contextlib
 import dataclasses
 import json
 import os
 import sys
+import tempfile
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -43,9 +46,15 @@ TARGET_VARIABLE = "VISE_INTERNAL_TARGET"
 #: baffling.
 CONFIG_VARIABLE = "VISE_INTERNAL_CONFIG"
 
-#: Set once the first worker has started, so later reloads print one line
-#: instead of the whole banner again.
-STARTED_VARIABLE = "VISE_INTERNAL_STARTED"
+#: Name of the marker a started worker leaves behind, so a later one knows it
+#: is a reload rather than a first start.
+#:
+#: A file rather than an environment variable, and that is not a preference. The
+#: reload worker is a *child*: it inherits the parent's environment and cannot
+#: write back into it, so a variable set by the first worker is gone by the
+#: second and every reload would reprint the whole banner. The marker is keyed
+#: on the parent's pid, which is the one thing every worker of one server shares.
+STARTED_MARKER = "vise-{pid}.started"
 
 
 def prepare_environment(target: str, config: ViseConfig) -> None:
@@ -89,7 +98,7 @@ def create() -> Any:
     server = Server(config, target)
     installation = server.prepare(app)
 
-    if os.environ.get(STARTED_VARIABLE):
+    if _already_started():
         # A reload gets one line rather than the whole banner again. The panel
         # count is on it because a reload is exactly when a panel appears or
         # disappears — a database that just came up, a route that just went.
@@ -99,10 +108,43 @@ def create() -> Any:
         )
         server.banner.stream.flush()
     else:
-        os.environ[STARTED_VARIABLE] = "1"
         server.announce()
 
     return app
+
+
+def _already_started() -> bool:
+    """Whether a worker of this server has run before, marking it if not.
+
+    Returns:
+        True when this is a reload rather than a first start.
+    """
+    marker = Path(tempfile.gettempdir()) / STARTED_MARKER.format(pid=os.getppid())
+
+    if marker.exists():
+        return True
+
+    try:
+        marker.touch()
+        # Removed when this worker exits, so the *next* `vise serve` announces
+        # itself properly rather than inheriting a stale marker from a pid the
+        # operating system has since reused.
+        atexit.register(_forget, marker)
+    except OSError:
+        # An unwritable temp directory costs a tidier banner and nothing else.
+        return False
+
+    return False
+
+
+def _forget(marker: Path) -> None:
+    """Remove the started marker.
+
+    Args:
+        marker: The file to remove.
+    """
+    with contextlib.suppress(OSError):  # a race with another worker
+        marker.unlink(missing_ok=True)
 
 
 def import_application(target: str) -> Any:
