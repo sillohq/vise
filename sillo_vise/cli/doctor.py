@@ -121,14 +121,17 @@ class Doctor(_Inspects):
         live = {panel.id for panel in panels.live()}
         reasons = {entry["id"]: entry["reason"] for entry in panels.missing()}
 
+        # Three columns, not four. The group is on the panel's own name in
+        # the sidebar and adds nothing here, and a fourth column costs the
+        # reason column the width it needs on an ordinary terminal — where a
+        # truncated reason is the one thing this table exists to show.
         self.line(f"Panels — {len(live)} of {len(all_panels())} live")
         self.table(
-            ["panel", "group", "state", "detail"],
+            ["panel", "state", "why not"],
             [
                 [
                     panel.id,
-                    panel.group,
-                    "live" if panel.id in live else "missing",
+                    "live" if panel.id in live else "—",
                     "" if panel.id in live else reasons.get(panel.id, ""),
                 ]
                 for panel in panels
