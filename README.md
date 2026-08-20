@@ -221,6 +221,26 @@ zero because vise is not there.
 
 Reproduce with `vise bench -n 2000`.
 
+## What is not built
+
+The Foreman specification lists more than this ships, and the gaps are
+deliberate rather than pending.
+
+- **Request replay and HAR export.** Both send requests to somebody's live
+  application, and neither is needed to see what that application is doing.
+- **Queue actions** — retry a job, pause a queue, forget a cache key. The
+  dashboard's only writes act on the recorder itself: pause, resume, clear. A
+  development tool changing application state by accident is a story nobody
+  wants to be in.
+- **EXPLAIN from the interface.** Same reason: it runs SQL the reader did not
+  write against a live database.
+- **Workers out of process are only partly visible.** When the pool runs
+  elsewhere, only what the shared queue backend reports can be shown — and the
+  panel says so rather than reporting zero workers.
+
+`CHANGELOG.md` carries the full list, and `ARCHITECTURE.md` explains the three
+places vise monkeypatches and why each was the only measurement point available.
+
 ## Development
 
 ```bash
