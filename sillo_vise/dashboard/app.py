@@ -122,7 +122,10 @@ class Dashboard:
         # running on an idle server.
         self.api.panels.watchers.probe_if_due()
 
-        rest = scope["path"][len(self.prefix) :] or "/"
+        # Not `or "/"`: the empty remainder is the bare prefix, which has to
+        # redirect to the trailing slash, and defaulting it here quietly made
+        # that branch unreachable.
+        rest = scope["path"][len(self.prefix) :]
 
         try:
             await self._route(rest, scope, receive, send)
