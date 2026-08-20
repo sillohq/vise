@@ -1,4 +1,48 @@
-# Vise — build plan
+# Vise — build plan, and what shipped
+
+> **Status: built.** Every phase below landed. This section records where the
+> plan and the finished thing differ, because a plan kept as though nothing was
+> learned is a plan nobody trusts twice.
+>
+> **Changed during the build**
+>
+> - **Route names are resolved, not read off the scope.** The plan assumed
+>   sillo's router put the matched route on the ASGI scope. It does not — it
+>   sets `route_params` and dispatches. `introspect.RouteResolver` walks the
+>   table once per unique path and caches, with a bound so a 404 flood cannot
+>   grow memory.
+> - **Three watchers monkeypatch.** Queries, Outgoing and Schedules each wrap a
+>   method because the framework offers no hook at the only point where the
+>   measurement exists. The plan said "hooks the framework already has"; for
+>   these three that was optimistic. Each wrapper is named, reversible and
+>   documented in `ARCHITECTURE.md`.
+> - **Reload needed a factory.** `--reload` runs the application in a child
+>   process that imports it itself, so an instrumented object never reaches it.
+>   `server/factory.py` exists entirely for that.
+> - **The logging work was larger than "replace the formatter".** uvicorn was
+>   the easy half. The framework attaches handlers to its own named loggers and
+>   builds more of them lazily, and it reports one unhandled exception from two
+>   layers — four full tracebacks for one failure, before any of that was
+>   addressed.
+> - **`vise bench` shipped as a real command**, not a note. The published
+>   numbers are in the README.
+> - **Boolean flags are `--reload on|off`.** A console flag always has a value,
+>   so a flag defaulting to true would override `.vise` on every run.
+>
+> **Not built, and why**
+>
+> - **Request replay and HAR export**, listed on the Foreman page under
+>   Requests. Both are write-shaped features against somebody's live
+>   application; neither is needed to see what an application is doing.
+> - **Queue actions** — retry a job, pause a queue, flush a cache key. The
+>   dashboard's only writes act on the recorder itself. A development tool
+>   changing application state by accident is a story nobody wants to be in.
+> - **EXPLAIN from the interface**, on the Queries panel. Same reason: it runs
+>   SQL the person did not write against a live database.
+
+---
+
+# The original plan
 
 **Vise is the development server for Sillo, with Foreman built in.**
 
