@@ -87,12 +87,15 @@ def create() -> Any:
     from .runner import Server
 
     server = Server(config, target)
-    server.prepare(app)
+    installation = server.prepare(app)
 
     if os.environ.get(STARTED_VARIABLE):
+        # A reload gets one line rather than the whole banner again. The panel
+        # count is on it because a reload is exactly when a panel appears or
+        # disappears — a database that just came up, a route that just went.
         server.banner.stream.write(
             f"  {server.banner.palette.render('▲', ACCENT)} reloaded"
-            f" · {len(server.installation.live_panels)} panels live\n"
+            f" · {len(installation.live_panels)} panels live\n"
         )
         server.banner.stream.flush()
     else:

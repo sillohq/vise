@@ -71,8 +71,12 @@ class ExceptionsPanel(Panel):
         groups = self._grouped(context)
         series = context.store.series["exceptions"]
         occurrences = int(series.total())
-        unhandled = sum(
-            1 for event in context.store.all(EventKind.EXCEPTION) if not event.handled
+        unhandled = len(
+            [
+                event
+                for event in context.store.all(EventKind.EXCEPTION)
+                if not event.handled
+            ]
         )
 
         return Rendered(

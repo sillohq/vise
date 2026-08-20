@@ -463,7 +463,3 @@ class SignalEvent(Event):
     duration_ms: float = 0.0
     failures: int = 0
     transport: str = ""
-
-    def __post_init__(self) -> None:
-        """Force the kind."""
-        self.kind = EventKind.SIGNAL

@@ -166,7 +166,7 @@ def _disarm_create_logger() -> None:
         return logger
 
     create_logger.__vise_disarmed__ = True  # type: ignore[attr-defined]
-    framework_logging.create_logger = create_logger  # type: ignore[assignment]
+    framework_logging.create_logger = create_logger
 
 
 def install_logging(

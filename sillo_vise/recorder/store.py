@@ -22,8 +22,23 @@ from __future__ import annotations
 import threading
 from collections import Counter, deque
 from collections.abc import Callable, Iterable, Iterator
+from typing import Any, Literal, overload
 
-from .events import Event, EventKind, RequestEvent
+from .events import (
+    CacheEvent,
+    Event,
+    EventKind,
+    ExceptionEvent,
+    JobEvent,
+    LogEvent,
+    MailEvent,
+    OutgoingEvent,
+    QueryEvent,
+    RequestEvent,
+    ScheduleEvent,
+    SignalEvent,
+    WebsocketEvent,
+)
 from .series import SeriesSet
 
 __all__ = ["Store", "StoreSubscription"]
@@ -200,6 +215,121 @@ class Store:
             correlated.append(event)
 
     # -- reading --------------------------------------------------------
+    #
+    # The kind decides the type. Overloads rather than a plain `list[Event]`
+    # because every panel reads fields that only exist on one subclass —
+    # `event.sql`, `event.status`, `event.hit` — and a base-typed return makes
+    # every one of those an unchecked attribute access. Eleven kinds is a lot of
+    # stanzas and the alternative is a checker that cannot catch a panel reading
+    # a field off the wrong event.
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.REQUEST],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[RequestEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.QUERY],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[QueryEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.CACHE],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[CacheEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.OUTGOING],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[OutgoingEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.JOB],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[JobEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.SCHEDULE],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[ScheduleEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.EXCEPTION],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[ExceptionEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.LOG],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[LogEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.MAIL],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[MailEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.WEBSOCKET],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[WebsocketEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: Literal[EventKind.SIGNAL],
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[SignalEvent]: ...
+
+    @overload
+    def recent(
+        self,
+        kind: EventKind,
+        limit: int = ...,
+        *,
+        where: Callable[[Event], bool] | None = ...,
+    ) -> list[Event]: ...
 
     def recent(
         self,
@@ -207,7 +337,7 @@ class Store:
         limit: int = 50,
         *,
         where: Callable[[Event], bool] | None = None,
-    ) -> list[Event]:
+    ) -> list[Any]:
         """The most recent events of one kind, newest first.
 
         Args:
@@ -216,7 +346,10 @@ class Store:
             where: Optional predicate an event must satisfy.
 
         Returns:
-            The events, newest first.
+            The events, newest first. The overloads above narrow this to the
+            concrete class the kind implies; the implementation is ``list[Any]``
+            because ``list`` is invariant, so ``list[Event]`` is not assignable
+            to ``list[RequestEvent]`` however true the runtime claim is.
         """
         with self._lock:
             ring = list(self._rings[kind])
@@ -229,7 +362,43 @@ class Store:
                     break
         return found
 
-    def all(self, kind: EventKind) -> list[Event]:
+    @overload
+    def all(self, kind: Literal[EventKind.REQUEST]) -> list[RequestEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.QUERY]) -> list[QueryEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.CACHE]) -> list[CacheEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.OUTGOING]) -> list[OutgoingEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.JOB]) -> list[JobEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.SCHEDULE]) -> list[ScheduleEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.EXCEPTION]) -> list[ExceptionEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.LOG]) -> list[LogEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.MAIL]) -> list[MailEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.WEBSOCKET]) -> list[WebsocketEvent]: ...
+
+    @overload
+    def all(self, kind: Literal[EventKind.SIGNAL]) -> list[SignalEvent]: ...
+
+    @overload
+    def all(self, kind: EventKind) -> list[Event]: ...
+
+    def all(self, kind: EventKind) -> list[Any]:
         """Every retained event of one kind, oldest first.
 
         Args:

@@ -203,9 +203,12 @@ def serve(config: ViseConfig, target: str) -> int:
         prepare_environment(target, config)
         return server.run(FACTORY)
 
-    server.prepare(import_application(target))
+    # The instrumented application is the one that gets served. Reading it back
+    # off the installation rather than off the local name, because `prepare`
+    # is where the middleware chain is built and only it knows what came out.
+    installation = server.prepare(import_application(target))
     server.announce()
-    return server.run(server.installation.app)
+    return server.run(installation.app)
 
 
 def _framework_version() -> str:

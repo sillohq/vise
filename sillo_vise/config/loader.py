@@ -139,7 +139,7 @@ def _coerce(value: Any, annotation: Any, where: str) -> Any:
     return value
 
 
-def _build(section: type[_Section], data: Mapping[str, Any], name: str) -> _Section:
+def _build(section: Any, data: Mapping[str, Any], name: str) -> Any:
     """Construct one configuration section from parsed data.
 
     Args:
@@ -152,6 +152,12 @@ def _build(section: type[_Section], data: Mapping[str, Any], name: str) -> _Sect
 
     Raises:
         ConfigError: On an unknown key, or a value of the wrong type.
+
+    Note:
+        *section* is typed loosely because ``dataclasses.fields`` wants a
+        dataclass and a type variable is not one as far as a checker is
+        concerned. The looseness is confined here; every caller passes a
+        section class from :data:`_SECTIONS`.
     """
     fields = {field.name: field for field in dataclasses.fields(section)}
 
