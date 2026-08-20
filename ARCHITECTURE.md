@@ -130,6 +130,13 @@ wrapped onto it as well, which would record one statement twice.
   falling is green; queue size rising is amber; throughput is the other way
   round. `trend_tile` takes `higher_is_better` as a required argument rather
   than guessing.
+- **A cell is a pill because its *column* is a state, not because the text
+  looks like one.** Deciding from the text coloured a recorder buffer of `500`
+  as an HTTP server error. `state_column()` marks the columns that hold states;
+  everything else is drawn as plain text.
+- **The Config panel counts panels, not watchers.** Five watchers feed nine
+  panels, so a tile headed "Panels" reading off the watcher registry was wrong
+  by four. `PanelContext.panels` exists for that one tile.
 - **`_is_hashed` looks at the last eight characters, not everything after the
   last hyphen.** Vite's hashes are base64url and can contain a hyphen —
   `index-BLYE-R0z.js` split on its last one leaves `R0z`.
