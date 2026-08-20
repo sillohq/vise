@@ -15,6 +15,13 @@ The probe deliberately reads ``sillo.cache.config._DEFAULT`` rather than calling
 access, so probing through it would bring a cache into existence and then
 report that the application has one — a panel that appears *because* something
 looked to see whether it should.
+
+Hit and miss are read from the backend's own ``CacheStats``, as a delta across
+the call, rather than inferred from what ``get`` returned. Inferring is wrong
+in both directions: a miss returns a ``_MISSING`` sentinel rather than ``None``,
+so every miss would be counted as a hit, and a key whose cached value genuinely
+*is* ``None`` would be counted as a miss. The hit ratio is the number this panel
+exists for, and it should come from the thing that already knows it.
 """
 
 from __future__ import annotations
@@ -113,15 +120,15 @@ class CacheWatcher(Watcher):
         async def wrapped(*args: Any, **kwargs: Any) -> Any:
             """Perform the operation, then record it."""
             started = time.perf_counter()
+            before = _counters(self.backend)
+
             try:
                 value = await original(*args, **kwargs)
             except Exception:
                 self._record(operation, args, started, "error", None)
                 raise
 
-            # A `get` reports hit or miss by what it returned, which is the
-            # one thing the ratio is built out of.
-            result = outcome or ("miss" if value is None else "hit")
+            result = outcome or _hit_or_miss(before, _counters(self.backend))
             self._record(operation, args, started, result, value)
             return value
 
@@ -209,6 +216,50 @@ def _describe(backend: Any) -> str:
     if backend is None:
         return ""
     return type(backend).__name__.removesuffix("Cache").lower() or "cache"
+
+
+def _counters(backend: Any) -> tuple[int, int]:
+    """A backend's hit and miss counters, right now.
+
+    Args:
+        backend: The cache backend.
+
+    Returns:
+        Hits and misses, or zeroes when the backend keeps no statistics.
+    """
+    stats = getattr(backend, "stats", None)
+    # A property on the base class, a method on some backends. Asking rather
+    # than assuming costs one `callable` check and avoids reading the counters
+    # off a bound method, which silently returns zeroes forever.
+    if callable(stats):
+        try:
+            stats = stats()
+        except Exception:  # noqa: BLE001 - a backend that will not report is not a crash
+            return (0, 0)
+
+    if stats is None:
+        return (0, 0)
+
+    return (int(getattr(stats, "hits", 0) or 0), int(getattr(stats, "misses", 0) or 0))
+
+
+def _hit_or_miss(before: tuple[int, int], after: tuple[int, int]) -> str:
+    """Whether a ``get`` found the key, according to the backend.
+
+    Args:
+        before: Hits and misses from before the call.
+        after: Hits and misses from after it.
+
+    Returns:
+        ``hit``, ``miss``, or ``unknown`` when the backend counts neither —
+        which is honest, and is what a third-party backend that does not
+        implement ``CacheStats`` deserves.
+    """
+    if after[1] > before[1]:
+        return "miss"
+    if after[0] > before[0]:
+        return "hit"
+    return "unknown"
 
 
 def _ttl(value: Any) -> int | None:
