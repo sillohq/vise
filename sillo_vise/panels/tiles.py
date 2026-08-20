@@ -214,23 +214,30 @@ def duration_tile(
 ) -> dict[str, Any]:
     """Build a tile showing an estimated percentile duration.
 
+    The baseline is the same percentile over twice the window, so the delta
+    answers "is this worse than it has been". Lower is better, always — which
+    is stated by passing ``higher_is_better=False`` rather than by negating the
+    change and hoping the reader follows, which is how this was first written
+    and how it came out amber for a latency that had fallen by 390ms.
+
     Args:
         label: What the duration measures.
         series: The series behind it.
         fraction: Which percentile. 0.95 is the p95.
-        minutes: How far back to estimate over.
+        minutes: How far back the recent window runs.
 
     Returns:
-        The tile. Lower is better, always.
+        The tile.
     """
     recent = series.percentile(fraction, minutes)
-    earlier = series.percentile(fraction, minutes * 2) - recent
+    baseline = series.percentile(fraction, minutes * 2)
+    change = recent - baseline
 
     return tile(
         label,
         duration(recent),
-        delta=_delta(-earlier, "ms") if earlier else "—",
-        tone=_tone(-earlier, higher_is_better=True) if earlier else TONE_MUTED,
+        delta=_delta(change, "ms") if round(change) else "—",
+        tone=_tone(change, higher_is_better=False) if round(change) else TONE_MUTED,
         spark=spark_of(series),
     )
 
