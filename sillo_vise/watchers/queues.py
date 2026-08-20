@@ -302,7 +302,7 @@ class QueueWatcher(Watcher):
             job_id = await inner(cls, *args, **kwargs)
 
             recorder.job(
-                getattr(cls, "__name__", "job"),
+                _reference(cls),
                 queue=str(
                     getattr(cls, "_queue_name", None)
                     or getattr(cls, "queue", "default")
@@ -351,7 +351,7 @@ class QueueWatcher(Watcher):
                 failures.add(job_id)
 
                 recorder.job(
-                    type(job).__module__ + "." + type(job).__name__,
+                    _reference(type(job)),
                     queue=str(getattr(job, "queue", "default")),
                     task_id=job_id,
                     status="failed",
@@ -499,6 +499,33 @@ class QueueWatcher(Watcher):
         self.backend = None
         self.middleware = None
         super().detach()
+
+
+def _reference(job: Any) -> str:
+    """Name a job class the way the queue names it.
+
+    ``Dispatchable.job_reference()`` is the canonical form — fully qualified,
+    because a worker is a separate process that has to import the class before
+    it can run it. Using it everywhere matters because the *worker* side reads
+    that same string out of the payload: naming a job by its bare class name on
+    the way in and its qualified name on the way out puts one job under two
+    names in the same column.
+
+    Args:
+        job: The job class.
+
+    Returns:
+        Its queue reference.
+    """
+    reference = getattr(job, "job_reference", None)
+    if callable(reference):
+        try:
+            return str(reference())
+        except Exception:  # noqa: BLE001 - fall back to the obvious name
+            pass
+
+    module = getattr(job, "__module__", "")
+    return f"{module}.{getattr(job, '__name__', 'job')}".lstrip(".")
 
 
 def _backend(app: Any) -> Any:

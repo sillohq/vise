@@ -82,6 +82,33 @@ logging, and mounts the Foreman operations dashboard beside it.
   `--reload on|off` because a console flag always has a value, and a flag
   defaulting to true would discard a project's configuration on every run.
 
+### Fixed the hard way
+
+Every one of these was found by building `example/` — an application with every
+subsystem switched on — and none by a unit test.
+
+- **Ctrl-C now stops the server** when the application runs an in-process worker
+  pool. `QueueWorker.run()` replaces the loop's SIGINT handler with its own
+  `stop`, so the interrupt reached the worker and never the server, and the
+  process hung until it was killed. Vise keeps the handler with the server for
+  the run and gives it back on detach.
+- **Application events are recorded.** The watcher wrapped the emitter's
+  `_dispatch`, which only runs on the receive side of a networked transport —
+  so on the memory backend every project starts with, nothing was ever
+  recorded while the panel reported itself live.
+- **The Queries panel stops disappearing.** Tortoise keeps connections in a
+  task-scoped context, so `connections.all()` is empty when read from the
+  dashboard's task however healthy the database is.
+- **Failed jobs report as failed.** `QueueWorker._process_job` catches its own
+  exceptions, so every failure was filed as a completion.
+- **The Workers panel reports workers.** `WorkerPool` keeps them on `_workers`
+  and publishes no stats; the panel said zero next to a Queues panel showing
+  their jobs finishing.
+- **The Schedules panel lists jobs.** `SchedulerManager`'s accessor is `list()`,
+  not a `jobs` attribute, and next fire is `next_run_time`.
+- One job is named one way. The enqueue and run paths used different names for
+  the same class, putting it under two rows in one column.
+
 ### Known limitations
 
 - **Workers out of process are only partly visible.** When the worker pool runs

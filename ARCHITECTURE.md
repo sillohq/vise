@@ -105,7 +105,7 @@ because the alternative is no panel at all.
 | Queries | `execute_query`, `execute_query_dict`, `execute_insert` on the classes of live Tortoise connections | Tortoise's `db_client` log line carries the query and no duration, because it is written *before* the statement runs |
 | Outgoing | `HTTPClient._send` | Client middleware is per instance and a project builds clients wherever it likes. `_send` is private and is the only seam that returns the response — so the only one that can see a status code |
 | Schedules | `SchedulerManager._execute` | The manager knows a job's next fire, not how its last run went |
-| Queues | `Dispatchable.dispatch`, `QueueWorker._process_job`, `Job.fire` | `SyncConnection` — what `setup_work` installs — has no middleware layer at all |
+| Queues | `Dispatchable.dispatch`, `QueueWorker._process_job`, `Job.fire`, `QueueWorker._register_signals` | `SyncConnection` — what `setup_work` installs — has no middleware layer at all |
 | Real-time | `Event.trigger` and `trigger_async` | See below: the emitter's `_dispatch` is the wrong seam |
 
 Each wrapper marks itself `__vise_wrapped__` so a second attach — after a reload
@@ -140,6 +140,13 @@ the panel asks.
   a failed job looks exactly like a successful one. `Job.fire` is the only place
   the exception is visible, and the watcher tracks which ids failed so the two
   wrappers do not file contradictory rows for one job.
+- **`QueueWorker.run()` steals the interrupt handler.** It calls
+  `loop.add_signal_handler(SIGINT, self.stop)`, which is right for a worker that
+  owns its process and catastrophic for one inside a server: it *replaces*
+  uvicorn's handler, so Ctrl-C stops the worker, never reaches the server, and
+  the process hangs until it is killed — with nothing on screen to explain why.
+  This is the one patch in vise that changes behaviour rather than observing it,
+  and what it changes is a worker overruling the process it is a guest in.
 
 ## Things that look like bugs and are not
 
