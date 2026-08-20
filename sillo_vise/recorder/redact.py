@@ -40,10 +40,21 @@ PLACEHOLDER = "***"
 #: ``scheme://user:password@host`` — the credential in a URL.
 _USERINFO = re.compile(r"(?P<scheme>[a-zA-Z][\w+.-]*://)(?P<userinfo>[^/@\s]+)@")
 
-#: A bearer token, a basic credential or an API key sitting loose in free text,
-#: which is where they end up when someone logs a whole request.
-_LOOSE_SECRET = re.compile(
-    r"\b(?:bearer|basic|token|secret|api[-_]?key|password)\b[=:\s]+\S+",
+# Two nets for credentials sitting loose in free text, which is where they end
+# up when someone logs a whole request. They are separate patterns because the
+# separator differs and one pattern doing both was over-eager: "password reset
+# requested" is prose, not a credential, so a bare keyword followed by
+# whitespace only counts for an authentication scheme.
+
+#: ``Bearer eyJ…`` or ``Basic dXNl…`` — a scheme and its credential.
+_AUTH_SCHEME = re.compile(
+    r"\b(?P<key>bearer|basic)\s+(?P<value>[\w\-._~+/]+=*)",
+    re.IGNORECASE,
+)
+
+#: ``token=…``, ``api_key: …`` — a named credential with an explicit separator.
+_NAMED_SECRET = re.compile(
+    r"\b(?P<key>token|secret|api[-_]?key|password|passwd|pwd)\b\s*[=:]\s*(?P<value>\S+)",
     re.IGNORECASE,
 )
 
@@ -214,10 +225,10 @@ class Redactor:
         """
         if not text:
             return text
-        return _LOOSE_SECRET.sub(
-            lambda match: f"{match.group(0).split('=')[0].split(':')[0].strip()} {PLACEHOLDER}",
-            _USERINFO.sub(rf"\g<scheme>{PLACEHOLDER}@", text),
-        )
+
+        text = _USERINFO.sub(rf"\g<scheme>{PLACEHOLDER}@", text)
+        text = _AUTH_SCHEME.sub(rf"\g<key> {PLACEHOLDER}", text)
+        return _NAMED_SECRET.sub(rf"\g<key>={PLACEHOLDER}", text)
 
     def body(self, body: bytes | str, limit: int) -> str:
         """Truncate and redact a captured body.
