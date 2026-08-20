@@ -6,11 +6,14 @@ development mail that was *suppressed*. A framework that quietly discards
 messages outside production leaves a developer guessing whether the password
 reset was ever built; listing them, with the rendered body, answers it.
 
-sillo's mail client is the hook. ``send`` is wrapped at class level so every
-mailer an application constructs is covered, and the recorded event carries the
-recipients, the subject, the template and the outcome — not the body. The body
-is where a password reset link lives, and a dashboard that holds one is a
-dashboard that hands out account access.
+``MailClient.send_message`` is the hook, and it is the right one because it is
+the funnel: ``send_email`` builds a message and calls it, ``send_template_email``
+calls ``send_email``. Wrapping the funnel records every path exactly once, where
+wrapping the three entry points would record a templated message three times.
+
+The recorded event carries the recipients, the subject, the template and the
+outcome — not the body. The body is where a password reset link lives, and a
+dashboard that holds one is a dashboard that hands out account access.
 """
 
 from __future__ import annotations
@@ -22,8 +25,8 @@ from .base import Availability, Watcher, available, unavailable
 
 __all__ = ["MailWatcher"]
 
-#: The client method that delivers a message.
-_SEND = "send"
+#: The one method every send path funnels through.
+_SEND = "send_message"
 
 
 class MailWatcher(Watcher):
@@ -58,11 +61,11 @@ class MailWatcher(Watcher):
         if client is None:
             return unavailable("sillo.mail is not available")
 
-        state = getattr(app, "state", None) or {}
-        if "mail" not in state and not _configured():
-            return unavailable("no mailer configured")
+        client = _configured_client(app)
+        if client is None:
+            return unavailable("no mailer — sillo.mail.setup_mail has not run")
 
-        return available(_transport(state.get("mail")))
+        return available(_transport(client))
 
     def attach(self, app: Any, recorder: Recorder) -> None:
         """Wrap the mail client's send method.
@@ -120,7 +123,7 @@ class MailWatcher(Watcher):
         Args:
             client: The mailer.
             message: The message.
-            status: completed, queued, suppressed or failed.
+            status: completed, suppressed or failed.
             error: The message, when delivery failed.
         """
         if self.recorder is None:  # pragma: no cover - detached
@@ -129,7 +132,7 @@ class MailWatcher(Watcher):
         self.recorder.mail(
             _recipients(message),
             subject=str(getattr(message, "subject", "") or ""),
-            template=str(getattr(message, "template", "") or ""),
+            template=str(getattr(message, "template_name", "") or ""),
             status=status,
             mailer=_transport(client),
             error=error,
@@ -151,28 +154,29 @@ def _client_class() -> type | None:
         The class, or None.
     """
     try:
-        from sillo.mail.client import Mailer
+        from sillo.mail.client import MailClient
     except ImportError:
-        try:
-            from sillo.mail import Mailer  # type: ignore[attr-defined]
-        except ImportError:
-            return None
-    return Mailer
+        return None
+    return MailClient
 
 
-def _configured() -> bool:
-    """Whether mail settings have been provided.
+def _configured_client(app: Any) -> Any:
+    """The mailer an application set up, if it set one up.
+
+    ``setup_mail`` puts it on ``app.state["mail_client"]``. A project that
+    built a client without calling that keeps it wherever it likes, and the
+    watcher will still record its sends — the class is wrapped, not the
+    instance — but the panel does not appear, because nothing here can prove
+    the application has mail rather than merely has the import available.
+
+    Args:
+        app: The application.
 
     Returns:
-        True when sillo's mail configuration names a transport.
+        The mailer, or None.
     """
-    try:
-        from sillo.mail import config
-    except ImportError:
-        return False
-
-    settings = getattr(config, "_SETTINGS", None) or getattr(config, "_DEFAULT", None)
-    return settings is not None
+    state = getattr(app, "state", None) or {}
+    return state.get("mail_client") or state.get("mail")
 
 
 def _recipients(message: Any) -> str:
@@ -193,18 +197,26 @@ def _recipients(message: Any) -> str:
 def _outcome(client: Any, result: Any) -> str:
     """What happened to a message.
 
+    Suppressed mail is the case this panel is most useful for: a framework
+    that discards messages outside production leaves a developer guessing
+    whether the password reset was ever built. ``send_message`` reports it in
+    the result's provider response, and that is read rather than inferred
+    from configuration, so a per-message override is reflected correctly.
+
     Args:
         client: The mailer.
-        result: Whatever ``send`` returned.
+        result: The ``EmailResult``.
 
     Returns:
-        ``suppressed`` when the mailer is not really sending, ``queued`` when
-        it handed the message to the queue, else ``completed``.
+        ``suppressed``, ``failed`` or ``completed``.
     """
-    if getattr(client, "suppress", False) or "suppress" in _transport(client):
+    response = getattr(result, "provider_response", None) or {}
+    if isinstance(response, dict) and response.get("suppressed"):
         return "suppressed"
-    if getattr(result, "queued", False):
-        return "queued"
+
+    if getattr(result, "success", True) is False:
+        return "failed"
+
     return "completed"
 
 
@@ -220,8 +232,12 @@ def _transport(client: Any) -> str:
     if client is None:
         return "mail"
 
-    transport = getattr(client, "transport", None) or getattr(client, "driver", None)
-    if transport is not None:
-        return str(getattr(transport, "name", None) or type(transport).__name__).lower()
+    config = getattr(client, "config", None)
+    if config is not None:
+        host = getattr(config, "host", "") or ""
+        if getattr(config, "suppress_send", False):
+            return "suppressed"
+        if host:
+            return str(host)
 
-    return type(client).__name__.lower()
+    return type(client).__name__.removesuffix("Client").lower() or "mail"

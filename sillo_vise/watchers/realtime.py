@@ -154,15 +154,20 @@ class RealtimeWatcher(Watcher):
         """
         sockets = [route for route in walk_routes(app) if "WEBSOCKET" in route.methods]
         emitter = _emitter(app)
+        events = _event_names(emitter) if emitter is not None else []
 
-        if not sockets and emitter is None:
-            return unavailable("no websocket routes and no event emitter")
+        # An emitter with no events registered is what every sillo application
+        # has, whether or not it uses one. Counting its mere existence as
+        # availability would put this panel on every project in the world and
+        # leave it reading zero on most of them.
+        if not sockets and not events:
+            return unavailable("no websocket routes and no registered events")
 
         parts = []
         if sockets:
             parts.append(f"{len(sockets)} socket route{'s' if len(sockets) != 1 else ''}")
-        if emitter is not None:
-            parts.append(f"{len(_event_names(emitter))} events")
+        if events:
+            parts.append(f"{len(events)} event{'s' if len(events) != 1 else ''}")
 
         return available(", ".join(parts))
 
