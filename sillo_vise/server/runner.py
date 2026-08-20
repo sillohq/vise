@@ -13,10 +13,12 @@ protocol where the duration and response size are not known. Instead
 its access logger, its loggers are silenced explicitly, and the access line is
 written by the recorder — which already measured both numbers.
 
-Reload is uvicorn's, driven from an import string. That is why the application
-has to be *named* rather than handed over: ``--reload`` re-imports it in a fresh
-process, and an already-imported object cannot survive that. Vise reattaches on
-each reload because the child process runs this module again from the top.
+Reload is uvicorn's, and it changes what is handed over. With reload off, the
+application object is instrumented here and served. With reload on, uvicorn is
+given :data:`~sillo_vise.server.factory.FACTORY` instead — because the reload
+worker is a fresh process that imports the application itself, and an object
+instrumented in the parent never reaches it. Handing over a factory makes
+reattachment structural rather than something to remember.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import uvicorn
 from .. import __version__
 from ..config import ViseConfig
 from ..logs import Banner, attach_access_log, install_logging
+from .factory import FACTORY, import_application, prepare_environment
 from .install import Installation, install
 
 __all__ = ["Server", "serve"]
@@ -137,6 +140,7 @@ class Server:
         try:
             uvicorn.run(
                 app,
+                factory=isinstance(app, str) and app == FACTORY,
                 host=server.host,
                 port=server.port,
                 reload=server.reload,
@@ -168,31 +172,31 @@ class Server:
             self.banner.stopped(reason)
 
 
-def serve(app: Any, config: ViseConfig, target: str | None = None) -> int:
-    """Instrument and serve an application.
+def serve(config: ViseConfig, target: str) -> int:
+    """Instrument and serve the application *target* names.
 
     Args:
-        app: The application. When *config* asks for reload this must be the
-            import string rather than the object, because uvicorn re-imports it
-            in a fresh process and an imported object cannot survive that.
         config: The resolved configuration.
-        target: The import string, for the banner.
+        target: The application's import string.
 
     Returns:
         The exit code.
+
+    Raises:
+        ValueError: If the target cannot be imported.
     """
     server = Server(config, target)
 
-    if not isinstance(app, str):
-        server.prepare(app)
-        server.announce()
-        return server.run(app)
+    if config.server.reload:
+        # The worker imports the application and instruments it. Nothing is
+        # imported here: doing so would double every import side effect the
+        # project has, and would still be thrown away.
+        prepare_environment(target, config)
+        return server.run(FACTORY)
 
-    # With reload on, uvicorn imports the application in a worker process, and
-    # that process runs the factory below — so instrumentation happens there,
-    # once per reload, rather than here where it would be thrown away.
+    server.prepare(import_application(target))
     server.announce()
-    return server.run(app)
+    return server.run(server.installation.app)
 
 
 def _framework_version() -> str:
