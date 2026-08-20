@@ -23,6 +23,7 @@ reattachment structural rather than something to remember.
 
 from __future__ import annotations
 
+import dataclasses
 import sys
 from typing import Any
 
@@ -185,6 +186,14 @@ def serve(config: ViseConfig, target: str) -> int:
     Raises:
         ValueError: If the target cannot be imported.
     """
+    # The target is usually discovered rather than configured, and the
+    # dashboard reports it — so put it back on the configuration rather than
+    # letting `meta` show an empty string for something vise definitely knows.
+    if not config.app.target:
+        config = dataclasses.replace(
+            config, app=dataclasses.replace(config.app, target=target)
+        )
+
     server = Server(config, target)
 
     if config.server.reload:

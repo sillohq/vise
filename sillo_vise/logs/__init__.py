@@ -16,9 +16,11 @@ from .formatter import JSONFormatter, ViseFormatter
 from .install import (
     LOG_LEVELS,
     attach_access_log,
+    consolidate_framework_logging,
     install_logging,
     silence_uvicorn,
 )
+from .repeat import RepeatFilter
 from .theme import level_style, status_style
 
 __all__ = [
@@ -26,8 +28,10 @@ __all__ = [
     "AccessLog",
     "Banner",
     "JSONFormatter",
+    "RepeatFilter",
     "ViseFormatter",
     "attach_access_log",
+    "consolidate_framework_logging",
     "duration",
     "elapsed",
     "install_logging",

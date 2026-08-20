@@ -76,20 +76,27 @@ class ViseFormatter(logging.Formatter):
         paint = self.palette.render
         level = _SHORT.get(record.levelname, record.levelname.lower()[:_LEVEL_WIDTH])
 
+        message, _, rest = record.getMessage().partition("\n")
+
         line = "  ".join(
             [
                 "  " + paint(time.strftime("%H:%M:%S", time.localtime(record.created)), TIMESTAMP),
                 paint(level.ljust(_LEVEL_WIDTH), level_style(level)),
                 paint(truncate(record.name, _LOGGER_WIDTH).ljust(_LOGGER_WIDTH), DIM),
-                record.getMessage(),
+                message,
             ]
         )
 
+        # A message that is itself several lines — which is how the framework
+        # reports an unhandled exception, formatting the traceback into the
+        # message rather than passing exc_info — is indented under the first
+        # line. Without this the second line starts at column zero and reads as
+        # a separate event.
+        if rest:
+            line += "\n" + _indent(rest)
+
         if record.exc_info:
-            # Indented to the message column, so a traceback reads as belonging
-            # to the line above it rather than as a new thing that happened.
-            traceback = self.formatException(record.exc_info)
-            line += "\n" + "\n".join(f"      {row}" for row in traceback.splitlines())
+            line += "\n" + _indent(self.formatException(record.exc_info))
 
         return line
 
@@ -137,6 +144,19 @@ class JSONFormatter(logging.Formatter):
             payload["exception"] = self.formatException(record.exc_info)
 
         return json.dumps(payload, separators=(",", ":"), default=str)
+
+
+def _indent(text: str) -> str:
+    """Indent a block under the message column.
+
+    Args:
+        text: The block.
+
+    Returns:
+        The block, every line indented, so it reads as belonging to the line
+        above it rather than as a new thing that happened.
+    """
+    return "\n".join(f"      {row}" for row in text.splitlines())
 
 
 def _plain(value: object) -> object:

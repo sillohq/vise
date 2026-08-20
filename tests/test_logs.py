@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import io
 import logging
+import time
 
 from sillo.console.style import Palette, strip_ansi
 
 from sillo_vise.config import LogConfig
 from sillo_vise.logs import (
     AccessLog,
+    RepeatFilter,
     Banner,
     JSONFormatter,
     ViseFormatter,
@@ -267,3 +269,67 @@ class TestBanner:
         stream = io.StringIO()
         Banner(stream, Palette(enabled=False)).stopped("interrupted")
         assert "vise stopped — interrupted" in stream.getvalue()
+
+
+class TestRepeats:
+    """sillo reports an unhandled exception from two layers. One failure should
+    reach the screen once."""
+
+    INNER = (
+        "Traceback (most recent call last):\n"
+        '  File "/a/router.py", line 10, in handle\n'
+        "    handler()\n"
+        '  File "/app/main.py", line 33, in boom\n'
+        '    raise ValueError("no")\n'
+        "ValueError: no"
+    )
+
+    OUTER = (
+        "Traceback (most recent call last):\n"
+        '  File "/a/error.py", line 9, in __call__\n'
+        "    await app()\n"
+        '  File "/a/router.py", line 10, in handle\n'
+        "    handler()\n"
+        '  File "/app/main.py", line 33, in boom\n'
+        '    raise ValueError("no")\n'
+        "ValueError: no"
+    )
+
+    @staticmethod
+    def record(message: str) -> logging.LogRecord:
+        return logging.LogRecord("x", logging.ERROR, "", 0, message, None, None)
+
+    def test_the_first_report_is_printed(self):
+        assert RepeatFilter().filter(self.record(self.INNER))
+
+    def test_the_same_failure_from_another_layer_is_not(self):
+        repeat = RepeatFilter()
+        repeat.filter(self.record(self.INNER))
+        assert not repeat.filter(self.record(self.OUTER))
+
+    def test_a_different_failure_is_printed(self):
+        repeat = RepeatFilter()
+        repeat.filter(self.record(self.INNER))
+        assert repeat.filter(self.record(self.INNER.replace("line 33", "line 44")))
+
+    def test_a_different_exception_at_the_same_line_is_printed(self):
+        repeat = RepeatFilter()
+        repeat.filter(self.record(self.INNER))
+        assert repeat.filter(self.record(self.INNER.replace("ValueError: no", "KeyError: k")))
+
+    def test_an_identical_ordinary_line_is_suppressed(self):
+        repeat = RepeatFilter()
+        repeat.filter(self.record("connection lost"))
+        assert not repeat.filter(self.record("connection lost"))
+
+    def test_a_repeat_after_the_window_is_printed(self):
+        """A loop logging "retrying" forty times is forty things happening."""
+        repeat = RepeatFilter(window=0.01)
+        repeat.filter(self.record("retrying"))
+        time.sleep(0.02)
+        assert repeat.filter(self.record("retrying"))
+
+    def test_two_different_lines_both_print(self):
+        repeat = RepeatFilter()
+        repeat.filter(self.record("first"))
+        assert repeat.filter(self.record("second"))

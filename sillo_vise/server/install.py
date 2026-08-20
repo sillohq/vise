@@ -100,7 +100,9 @@ class Installation:
         notes.append("recorder on" if self.recorder else "recorder off")
 
         if self.panels:
-            notes.append(f"{len(self.live_panels)} panels")
+            # The panel count is already on its own banner row. Repeating it
+            # here would spend a third of the footer restating it.
+            notes.append(f"dashboard {self.config.dashboard.access}")
 
         notes.append(self.config.source or "no .vise")
         return notes
