@@ -16,6 +16,18 @@ logging, and mounts the Foreman operations dashboard beside it.
   says which are live and why the rest are not.
 - **Panels reappear without a restart.** Availability is re-probed on an
   interval, so a panel arrives when its backend comes up.
+- **Every event row opens.** A request brings its headers both ways, both
+  bodies, and everything it caused — each of those clickable in turn. A query
+  brings its statement, bindings and the route that ran it; a job brings its
+  payload and traceback. Rows that are summaries rather than events — a queue, a
+  channel, a configuration key — are not clickable, because giving a reader
+  something to click that leads nowhere is worse than giving them nothing.
+- **No mocked browser chrome.** The Foreman mockup draws traffic-light dots and
+  an address bar; that belongs in a screenshot and not in the tool. What it
+  carried — the application's name, where it is, and the pause control — moved
+  into the sidebar and the panel header.
+- **Request and response bodies are captured** by default, capped at
+  `max_body_bytes` and redacted like everything else. Off is one line.
 - Served as raw ASGI middleware rather than a mounted router: a mounted router
   in sillo claims its whole prefix subtree and can shadow routes registered
   later during startup, which an observability tool must not do to the thing it
@@ -49,6 +61,10 @@ logging, and mounts the Foreman operations dashboard beside it.
   free-text credentials, and SQL bindings behind a flag. The store has no
   un-redacted path, and the tests assert the secret is not *in the store* rather
   than that the API hides it.
+- **Exceptions carry their traceback**, redacted. A traceback ends with the
+  exception's own message and carries the source line of every frame, so
+  anything the message holds it holds too — redacting only the message left the
+  secret one field away.
 - Every event carries the request that caused it, so "the queries, cache reads,
   outgoing calls, jobs and log lines one request produced" is a filter.
 - **Disabled means compiled out.** `[recorder] enabled = false` constructs

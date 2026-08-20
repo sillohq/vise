@@ -39,6 +39,11 @@ Fourteen panels, in four groups, over hooks the framework already has.
 | Diagnose | Exceptions, Logs, Real-time, Mail |
 | Tools | Routes, Config |
 
+**Rows open.** Click a request and you get its headers both ways, the body it
+sent, the body that went back, and everything it caused — the queries, cache
+reads, log lines and mail — each of those clickable in turn. Click a query and
+you get the statement, its bindings, and the route that ran it. Escape closes.
+
 **A panel appears only when it can observe something.** An application with no
 Redis has no Queues panel — not a Queues panel showing zeroes, and certainly not
 one showing sample data. `vise panels` says which are live and why the rest are
@@ -101,6 +106,7 @@ access = "local"          # local | token | open
 buffer = 2000
 slow_request_ms = 500
 redact = ["x-tenant-key"]
+capture_bodies = true     # request and response bodies, capped at 16 kB
 
 [logs]
 style = "vise"
@@ -131,6 +137,11 @@ in a check without parsing its output.
 
 These are from the Foreman specification, and each is expensive to retrofit and
 cheap to design in.
+
+Bodies are captured by default. That is a deliberate choice for a loopback-only
+development server whose Requests panel exists to answer "what did the server
+actually send back" — and it is one line to turn off. They are capped at
+`max_body_bytes` and pass through the same redaction as everything else.
 
 **1. Redaction happens on capture, never on read.** A watcher that stores a
 `Cookie` header and hides it in the interface is a credential store with a filter

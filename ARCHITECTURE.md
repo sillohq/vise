@@ -130,6 +130,13 @@ wrapped onto it as well, which would record one statement twice.
   falling is green; queue size rising is amber; throughput is the other way
   round. `trend_tile` takes `higher_is_better` as a required argument rather
   than guessing.
+- **A watcher that reads a request body must never withhold a chunk.** Reading
+  consumes it, so `receive` is teed: the copy is kept and the message handed on
+  untouched. Getting this wrong does not produce a missing body, it produces an
+  application hanging on a request it will never see.
+- **Redacting an exception's message is not enough.** The traceback ends with
+  that message and carries the source line of every frame. Both fields go
+  through the redactor, and the same is true of a job's `error` and `traceback`.
 - **A cell is a pill because its *column* is a state, not because the text
   looks like one.** Deciding from the text coloured a recorder buffer of `500`
   as an HTTP server error. `state_column()` marks the columns that hold states;
