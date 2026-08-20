@@ -133,6 +133,14 @@ wrapped onto it as well, which would record one statement twice.
 - **`_is_hashed` looks at the last eight characters, not everything after the
   last hyphen.** Vite's hashes are base64url and can contain a hyphen —
   `index-BLYE-R0z.js` split on its last one leaves `R0z`.
+- **`silence_uvicorn` leaves propagation alone.** Clearing the handlers *and*
+  setting `propagate = False` on every uvicorn logger produces exactly the
+  output it was meant to prevent: `uvicorn.error` reaches the root *through*
+  `uvicorn`, so stopping the walk at the parent means the record finds no
+  handler anywhere and Python falls back to `logging.lastResort`, which prints
+  the bare message in no format at all. Levels do the work instead, and the bar
+  is actually set by `log_level="error"` on `uvicorn.run`, because `Config`
+  sets those levels itself after `silence_uvicorn` has run.
 - **The empty path remainder is not defaulted to `/`.** The bare prefix has to
   redirect to the trailing slash, because the built index references its assets
   relatively; defaulting made that branch unreachable.
