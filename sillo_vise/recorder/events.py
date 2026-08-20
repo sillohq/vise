@@ -423,8 +423,11 @@ class WebsocketEvent(Event):
         channel: Channel or path.
         action: ``connect``, ``disconnect``, ``send`` or ``receive``.
         members: Members on the channel afterwards.
-        bytes: Payload size.
+        bytes: Payload size, or the connection's total on a close.
         close_code: Close code, on a disconnect.
+        duration_ms: How long the connection lived, on a close. Zero on the
+            frames in between — a connection has a lifetime and a frame does
+            not, and the panel shows the two in different columns.
         slow: Whether the consumer was behind when this happened.
     """
 
@@ -435,6 +438,7 @@ class WebsocketEvent(Event):
     members: int = 0
     bytes: int = 0
     close_code: int | None = None
+    duration_ms: float = 0.0
     slow: bool = False
 
 
