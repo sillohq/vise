@@ -204,28 +204,32 @@ class Series:
         self._bucket(at).add(value, error=error)
 
     def buckets(self, minutes: int | None = None) -> list[Bucket]:
-        """The most recent buckets, oldest first.
+        """The most recent minutes, oldest first, ending at the current one.
+
+        Anchored to now rather than to the last observation. A series that
+        stopped receiving traffic five minutes ago has to render as five empty
+        minutes on the right of the chart — anchoring to the newest bucket
+        instead would draw the old traffic at the live edge and make a stalled
+        queue look busy.
+
+        Minutes with no bucket are filled with empty ones, at either end, so
+        the length is always what was asked for. A chart with a fixed bar count
+        should not narrow because the process started two minutes ago.
 
         Args:
-            minutes: How many to return. None means the whole window.
+            minutes: How many minutes to return. None means the whole window.
 
         Returns:
-            The buckets, padded at the front with empty ones so the length is
-            always what was asked for — a chart with a fixed bar count should
-            not narrow because the process started two minutes ago.
+            The buckets, oldest first.
         """
         wanted = self.window if minutes is None else max(1, min(minutes, self.window))
-        recent = list(self._buckets)[-wanted:]
+        held = {bucket.minute: bucket for bucket in self._buckets}
+        latest = self._minute()
 
-        if len(recent) < wanted:
-            first = recent[0].minute if recent else self._minute()
-            padding = [
-                Bucket(first - 60 * offset)
-                for offset in range(wanted - len(recent), 0, -1)
-            ]
-            recent = padding + recent
-
-        return recent
+        return [
+            held.get(minute) or Bucket(minute)
+            for minute in range(latest - 60 * (wanted - 1), latest + 60, 60)
+        ]
 
     def counts(self, minutes: int | None = None) -> list[int]:
         """Observations per minute, oldest first.
