@@ -35,11 +35,13 @@ from .theme import BYTES, DIM, DURATION, METHOD, PATH, SLOW, TIMESTAMP, status_s
 
 __all__ = ["AccessLog"]
 
-#: Column widths. The method column fits DELETE and OPTIONS; the path column is
-#: the one that gives, because it is the only field whose length carries
-#: information worth keeping.
-_METHOD_WIDTH = 6
-_PATH_WIDTH = 44
+#: Column widths. Seven characters fits OPTIONS and CONNECT, the longest
+#: methods there are — six fits DELETE and then pushes the path one column
+#: right on an OPTIONS request, which is the whole failure alignment is meant
+#: to prevent. The path column is the one that gives, because it is the only
+#: field whose length carries information worth keeping.
+_METHOD_WIDTH = 7
+_PATH_WIDTH = 43
 _STATUS_WIDTH = 3
 _DURATION_WIDTH = 7
 _SIZE_WIDTH = 9
