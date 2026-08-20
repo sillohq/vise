@@ -301,3 +301,249 @@ class TestRegistry:
             assert all(state.to_dict()["requires"] for state in registry)
         finally:
             registry.detach_all()
+
+
+class TestScheduleWatcher:
+    """The scheduler's accessor is `list()`. An earlier version read
+    `manager.jobs`, found nothing, and reported "0 scheduled" — a panel that
+    appeared and was wrong, which nothing complained about."""
+
+    @staticmethod
+    def manager():
+        from sillo.work.scheduler.manager import SchedulerManager
+
+        scheduler = SchedulerManager()
+
+        @scheduler.every(30, name="analytics.rollup")
+        async def rollup():
+            pass
+
+        @scheduler.cron("0 3 * * *", name="workspaces.prune")
+        async def prune():
+            pass
+
+        return scheduler
+
+    def app_with(self, scheduler):
+        application = SilloApp(title="scheduled")
+        application.state["scheduler"] = scheduler
+        return application
+
+    def test_the_jobs_are_found(self):
+        watcher = ScheduleWatcher()
+        assert "2 scheduled" in watcher.probe(self.app_with(self.manager())).detail
+
+    def test_each_job_is_listed(self):
+        watcher = ScheduleWatcher()
+        app = self.app_with(self.manager())
+        watcher.attach(app, Recorder())
+        try:
+            assert {job["job"] for job in watcher.jobs()} == {
+                "analytics.rollup",
+                "workspaces.prune",
+            }
+        finally:
+            watcher.detach()
+
+    def test_a_cron_expression_is_shown_as_written(self):
+        watcher = ScheduleWatcher()
+        app = self.app_with(self.manager())
+        watcher.attach(app, Recorder())
+        try:
+            jobs = {job["job"]: job["expression"] for job in watcher.jobs()}
+            assert jobs["workspaces.prune"] == "0 3 * * *"
+        finally:
+            watcher.detach()
+
+    def test_an_interval_reads_as_an_interval(self):
+        """Rather than as the repr of a trigger object."""
+        watcher = ScheduleWatcher()
+        app = self.app_with(self.manager())
+        watcher.attach(app, Recorder())
+        try:
+            jobs = {job["job"]: job["expression"] for job in watcher.jobs()}
+            assert jobs["analytics.rollup"] == "every 30s"
+        finally:
+            watcher.detach()
+
+    def test_the_next_fire_is_read(self):
+        watcher = ScheduleWatcher()
+        app = self.app_with(self.manager())
+        watcher.attach(app, Recorder())
+        try:
+            assert all(job["next_fire"] for job in watcher.jobs())
+        finally:
+            watcher.detach()
+
+
+class TestWorkerWatcher:
+    """WorkerPool keeps its workers on `_workers` and exposes no accessor. An
+    earlier version looked for `pool.workers` and reported a pool of three as
+    zero workers with an empty table."""
+
+    @staticmethod
+    def pool():
+        from sillo.work.queue.connection import ConnectionManager, SyncConnection
+        from sillo.work.queue.failed import MemoryFailedRepository
+        from sillo.work.queue.payloads import PayloadSerializer
+        from sillo.work.queue.workers import QueueWorker, WorkerOptions, WorkerPool
+
+        connections = ConnectionManager()
+        connections.add("default", SyncConnection())
+
+        built = WorkerPool()
+        for queues in (["default"], ["mail"]):
+            built.add(
+                QueueWorker(
+                    connections,
+                    PayloadSerializer(),
+                    MemoryFailedRepository(),
+                    options=WorkerOptions(concurrency=2, queues=queues),
+                )
+            )
+        return built
+
+    def app_with(self, pool):
+        application = SilloApp(title="pooled")
+        application.state["worker_pool"] = pool
+        return application
+
+    def test_the_pool_is_found(self):
+        assert WorkerWatcher().probe(self.app_with(self.pool()))
+
+    def test_the_workers_are_counted(self):
+        watcher = WorkerWatcher()
+        watcher.attach(self.app_with(self.pool()), Recorder())
+        try:
+            assert watcher.stats()["workers"] == 2
+        finally:
+            watcher.detach()
+
+    def test_each_worker_is_a_row(self):
+        watcher = WorkerWatcher()
+        watcher.attach(self.app_with(self.pool()), Recorder())
+        try:
+            assert len(watcher.processes()) == 2
+        finally:
+            watcher.detach()
+
+    def test_a_row_names_the_queues_it_listens_on(self):
+        watcher = WorkerWatcher()
+        watcher.attach(self.app_with(self.pool()), Recorder())
+        try:
+            assert {row["queues"] for row in watcher.processes()} == {"default", "mail"}
+        finally:
+            watcher.detach()
+
+    def test_a_stopped_worker_is_not_reported_as_closed(self):
+        """ "closed" is a circuit-breaker state. A worker that is not running is
+        stalled, and saying so is more use than a hardcoded reassurance."""
+        watcher = WorkerWatcher()
+        watcher.attach(self.app_with(self.pool()), Recorder())
+        try:
+            assert {row["circuit"] for row in watcher.processes()} == {"stalled"}
+        finally:
+            watcher.detach()
+
+
+class TestRealtimeWatcher:
+    """`emit()` runs listeners through `Event.trigger`. The emitter's
+    `_dispatch` only runs on the receive side of a networked transport, so
+    wrapping it recorded nothing on the memory backend every project starts
+    with."""
+
+    @staticmethod
+    def emitter():
+        from sillo.events.emitter import EventEmitter
+
+        return EventEmitter()
+
+    def app_with(self, emitter):
+        application = SilloApp(title="eventful")
+        application.state["emitter"] = emitter
+        return application
+
+    def test_a_queue_dispatcher_is_not_mistaken_for_an_emitter(self):
+        """setup_work puts an EventDispatcher at state["events"], which has
+        neither of the members this watcher uses."""
+        from sillo.work.queue.events import EventDispatcher
+
+        application = SilloApp(title="worky")
+        application.state["events"] = EventDispatcher()
+
+        assert not RealtimeWatcher().probe(application)
+
+    def test_an_emitter_with_events_is_available(self):
+        emitter = self.emitter()
+
+        @emitter.on("document.published")
+        async def listener(document_id):
+            pass
+
+        assert RealtimeWatcher().probe(self.app_with(emitter))
+
+    def test_an_emitted_event_is_recorded(self):
+        import anyio
+
+        emitter = self.emitter()
+
+        @emitter.on("document.published")
+        async def listener(document_id):
+            pass
+
+        recorder = Recorder()
+        watcher = RealtimeWatcher()
+        app = self.app_with(emitter)
+        watcher.attach(app, recorder)
+
+        try:
+
+            async def exercise():
+                await emitter.start()
+                emitter.emit("document.published", 7)
+                await anyio.sleep(0.15)
+                await emitter.stop()
+
+            anyio.run(exercise)
+        finally:
+            watcher.detach()
+
+        assert recorder.store.count(EventKind.SIGNAL) == 1
+
+    def test_the_listener_count_is_read(self):
+        import anyio
+
+        emitter = self.emitter()
+
+        for _ in range(2):
+
+            @emitter.on("document.published")
+            async def listener(document_id):
+                pass
+
+        recorder = Recorder()
+        watcher = RealtimeWatcher()
+        watcher.attach(self.app_with(emitter), recorder)
+
+        try:
+
+            async def exercise():
+                await emitter.start()
+                emitter.emit("document.published", 7)
+                await anyio.sleep(0.15)
+                await emitter.stop()
+
+            anyio.run(exercise)
+        finally:
+            watcher.detach()
+
+        assert recorder.store.recent(EventKind.SIGNAL)[0].listeners == 2
+
+    def test_detaching_restores_the_trigger(self):
+        from sillo.events.core import Event as SilloEvent
+
+        watcher = RealtimeWatcher()
+        watcher.attach(self.app_with(self.emitter()), Recorder())
+        watcher.detach()
+
+        assert not getattr(SilloEvent.trigger, "__vise_wrapped__", False)
