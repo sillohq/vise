@@ -147,7 +147,16 @@ class Dashboard:
         """
         method = scope.get("method", "GET")
 
-        if path in ("/", ""):
+        if path == "":
+            # The built index references its assets relatively — `./assets/…`
+            # — because the mount point is configurable and an absolute base
+            # would bake one path into the bundle. Relative only resolves
+            # correctly under a trailing slash: opened at `/__sillo/foreman`,
+            # the browser would ask for `/__sillo/assets/…` and get nothing.
+            await _redirect(send, f"{self.prefix}/")
+            return
+
+        if path == "/":
             body, kind, cache = self.assets.index(self.prefix)
             await _bytes(send, 200, body, kind, cache)
             return
@@ -280,6 +289,32 @@ def _limit(scope: Scope) -> int:
         return max(1, min(200, int(_query(scope, "limit") or 50)))
     except ValueError:
         return 50
+
+
+async def _redirect(send: Send, location: str) -> None:
+    """Send a redirect.
+
+    307 rather than 301: a permanent redirect is cached by the browser, and a
+    development server whose mount point moves would keep sending people to the
+    old one until they cleared it.
+
+    Args:
+        send: The send channel.
+        location: Where to go.
+    """
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 307,
+            "headers": [
+                (b"location", location.encode()),
+                (b"content-length", b"0"),
+                (b"cache-control", b"no-store"),
+                *BASE_HEADERS,
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": b""})
 
 
 async def _json(send: Send, status: int, payload: Any) -> None:

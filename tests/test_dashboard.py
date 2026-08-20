@@ -392,3 +392,30 @@ class TestAssets:
         from sillo_vise.dashboard.assets import Assets
 
         assert Assets().find("/assets/never-existed.js") is None
+
+
+class TestTrailingSlash:
+    """The built index references its assets relatively, because the mount point
+    is configurable. Relative only resolves under a trailing slash."""
+
+    def test_the_bare_prefix_redirects(self, client):
+        response = client.get(PREFIX, follow_redirects=False)
+        assert response.status_code == 307
+
+    def test_it_redirects_to_the_slash(self, client):
+        response = client.get(PREFIX, follow_redirects=False)
+        assert response.headers["location"] == f"{PREFIX}/"
+
+    def test_the_redirect_is_not_cached(self):
+        """A permanent redirect would survive the mount point moving."""
+        app, installation = build()
+        try:
+            with TestClient(app) as test_client:
+                response = test_client.get(PREFIX, follow_redirects=False)
+            assert response.headers["cache-control"] == "no-store"
+        finally:
+            installation.shutdown()
+
+    def test_a_panel_url_serves_the_interface(self, client):
+        """The interface routes itself, so /queries has to reach the index."""
+        assert get(client, "/queries").status_code == 200

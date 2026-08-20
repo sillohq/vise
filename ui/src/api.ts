@@ -29,7 +29,15 @@ export function mountPath(): string {
   return KNOWN_ROUTES.has(last) ? segments.slice(0, -1).join('/') : path
 }
 
-/** Client-side routes the interface owns, so they can be trimmed off the mount. */
+/**
+ * Client-side routes the interface owns, so they can be trimmed off the mount.
+ *
+ * These are the panel ids, and they have to stay in step with
+ * `sillo_vise/panels/registry.py`. The cost of drifting is small and specific:
+ * a panel added there and not here would work when clicked and 404 its own API
+ * calls when linked to directly, because the mount would be measured one
+ * segment too long.
+ */
 const KNOWN_ROUTES = new Set([
   'overview',
   'requests',

@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { fetchMeta, performAction } from './api'
+import { fetchMeta, mountPath, performAction } from './api'
 import { Chrome } from './components/Chrome'
 import { Panel } from './components/Panel'
 import { Sidebar } from './components/Sidebar'
@@ -23,10 +23,25 @@ import type { Meta, PanelSummary } from './types'
 /** How long to wait before retrying after the server goes away. */
 const RETRY_MS = 2000
 
+/**
+ * The panel named in the current URL, if any.
+ *
+ * The dashboard serves its index for any unknown path under the mount, so
+ * `/__sillo/foreman/queries` reaches the interface and this is what turns it
+ * into an open panel. That is what makes a link to a panel a real link.
+ */
+function panelFromUrl(): string | null {
+  const rest = window.location.pathname
+    .slice(mountPath().length)
+    .replace(/^\/+|\/+$/g, '')
+
+  return rest || null
+}
+
 export function App() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [active, setActive] = useState<string | null>(null)
+  const [active, setActive] = useState<string | null>(panelFromUrl)
   const [recording, setRecording] = useState(true)
 
   const load = useCallback(() => {
@@ -35,8 +50,8 @@ export function App() {
       .then(next => {
         setMeta(next)
         setRecording(next.recorder.enabled)
-        // Only when nothing is open, so a refresh of the sidebar does not
-        // knock the reader back to the first panel.
+        // Only when nothing is open, so refreshing the sidebar does not knock
+        // the reader back to the first panel.
         setActive(current => current ?? next.initial ?? null)
       })
       .catch((problem: Error) => setError(problem.message))
@@ -46,8 +61,8 @@ export function App() {
 
   // `vise serve --reload` restarts the process on every save, so the first
   // fetch after a save fails. Retrying quietly is the difference between a
-  // dashboard that survives development and one that has to be reloaded by
-  // hand every time a file is touched.
+  // dashboard that survives development and one that has to be reloaded by hand
+  // every time a file is touched.
   useEffect(() => {
     if (!error) return
     const timer = window.setTimeout(load, RETRY_MS)
@@ -66,9 +81,26 @@ export function App() {
 
   const live = useLivePanel(panel?.id ?? null, recording)
 
+  // Keep the address bar on the open panel, so it can be linked and so the back
+  // button walks back through the panels somebody actually looked at.
+  useEffect(() => {
+    if (!panel) return
+
+    const target = `${mountPath()}/${panel.id}`
+    if (window.location.pathname !== target) {
+      window.history.pushState({ panel: panel.id }, '', target)
+    }
+  }, [panel])
+
+  useEffect(() => {
+    const onPop = () => setActive(panelFromUrl())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
   // A panel can stop existing while it is open — a queue backend goes away, and
-  // the Queues panel goes with it. Moving to the first remaining panel is
-  // better than leaving the reader looking at something that is no longer there.
+  // the Queues panel goes with it. Moving to the first remaining panel is better
+  // than leaving the reader looking at something that is no longer there.
   useEffect(() => {
     if (live.gone) {
       setActive(null)
@@ -76,8 +108,8 @@ export function App() {
     }
   }, [live.gone, load])
 
-  // The title says which application this is, because two dashboards in two
-  // tabs are otherwise identical.
+  // The title says which application this is, because two dashboards in two tabs
+  // are otherwise identical.
   useEffect(() => {
     if (meta) document.title = `${meta.dashboard.title} — ${meta.app.name}`
   }, [meta])
@@ -110,7 +142,11 @@ export function App() {
             onSelect={setActive}
             title={meta.dashboard.title}
           />
-          <Panel panel={panel} rendered={live.rendered} live={recording && live.connected} />
+          <Panel
+            panel={panel}
+            rendered={live.rendered}
+            live={recording && live.connected}
+          />
         </div>
       )}
     </div>
