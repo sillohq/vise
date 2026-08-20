@@ -29,7 +29,7 @@ Queries panel and are usually not secret — but a project that puts a token in 
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping
 
 __all__ = ["PLACEHOLDER", "Redactor"]
 
@@ -265,6 +265,3 @@ class Redactor:
             f"bindings={self.bindings})"
         )
 
-
-def _unused(_: Sequence[Any]) -> None:  # pragma: no cover
-    """Placeholder kept out of the public surface."""
