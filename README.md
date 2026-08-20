@@ -119,6 +119,7 @@ variables, command-line flags. Only flags actually typed override the file.
 | `vise doctor` | Report what vise can observe here, and what it cannot |
 | `vise panels` | List the panels, and why any are missing |
 | `vise routes` | The route table, with what guards each route |
+| `vise bench` | Measure the per-request overhead, with the recorder on and off |
 | `vise version` | What is installed, and what each optional piece would add |
 
 `vise doctor` exits non-zero when any declared panel is missing, so it is usable
@@ -196,17 +197,29 @@ accident. A refusal never says which mode refused.
 
 ## Overhead
 
-Measured with `vise bench`, on the same machine, same application, same
-request.
+Rule three, kept. Measured with `vise bench`, which drives the ASGI application
+directly — a loopback TCP round trip is tens of microseconds of noise around an
+overhead measured in single ones.
 
-| | p50 | p95 | overhead |
-| --- | --- | --- | --- |
-| sillo alone | — | — | — |
-| vise, recorder off | — | — | — |
-| vise, recorder on | — | — | — |
+2,000 requests to `/` on a small application, Python 3.12, Apple silicon:
 
-> Numbers are filled in by the benchmark; the row for "recorder off" exists to
-> keep rule 2 honest.
+| | p50 | p95 | p99 | overhead |
+| --- | --- | --- | --- | --- |
+| sillo alone | 57.0µs | 84.4µs | 153.7µs | — |
+| vise, recorder off | 57.1µs | 82.9µs | 145.9µs | +0.1µs |
+| vise, recorder on | 121.3µs | 195.2µs | 251.8µs | +64.3µs |
+
+The middle row is the one that matters. `+0.1µs` is measurement noise, which is
+what "disabled means compiled out" has to mean: with the recorder off nothing is
+constructed and no middleware is in the chain, so there is no branch to skip.
+
+The `+64.3µs` when it is on is mostly redaction and event construction, and that
+is the design rather than an accident — headers are decoded and redacted on the
+way in, because the alternative is a store holding credentials. Vise is a
+development server; run `uvicorn app.main:app` in production and the cost is
+zero because vise is not there.
+
+Reproduce with `vise bench -n 2000`.
 
 ## Development
 

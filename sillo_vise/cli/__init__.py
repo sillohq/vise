@@ -13,6 +13,7 @@ from __future__ import annotations
 from sillo.console import Command, Console
 
 from .. import __version__
+from .bench import Bench
 from .discover import discover_target
 from .doctor import Doctor, Panels
 from .init import Init
@@ -23,7 +24,7 @@ from .version import Version
 __all__ = ["COMMANDS", "build_console", "discover_target"]
 
 #: Every command ``vise`` offers, in the order the help lists them.
-COMMANDS: list[type[Command]] = [Serve, Init, Doctor, Panels, Routes, Version]
+COMMANDS: list[type[Command]] = [Serve, Init, Doctor, Panels, Routes, Bench, Version]
 
 
 def build_console() -> Console:
