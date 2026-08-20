@@ -30,6 +30,7 @@ where a dashboard showing green would be lying.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import traceback
 from typing import Any
@@ -40,6 +41,8 @@ from ..recorder import Recorder, job_scope
 from .base import Availability, Watcher, available, unavailable
 
 __all__ = ["QueueMiddleware", "QueueWatcher"]
+
+logger = logging.getLogger("sillo_vise")
 
 
 class QueueMiddleware:
@@ -238,6 +241,44 @@ class QueueWatcher(Watcher):
         self._wrap_dispatch(recorder)
         self._wrap_worker(recorder)
         self._wrap_fire(recorder)
+        self._keep_interrupts()
+
+    def _keep_interrupts(self) -> None:
+        """Stop an in-process worker taking the interrupt handler.
+
+        ``QueueWorker.run()`` calls ``loop.add_signal_handler(SIGINT, self.stop)``,
+        which is right for a worker that owns its process and catastrophic for
+        one running inside a server: it *replaces* uvicorn's handler, so Ctrl-C
+        stops the worker, never reaches the server, and the process hangs until
+        it is killed. Nothing reports this — the terminal simply stops
+        responding, which is a miserable thing to debug.
+
+        Under ``vise serve`` the server owns the process, so the grab is
+        neutralised for the run and put back on detach. This is the one
+        monkeypatch here that changes behaviour rather than observing it, and
+        the behaviour it changes is a worker overruling the process it is a
+        guest in.
+        """
+        try:
+            from sillo.work.queue.workers import QueueWorker
+        except ImportError:  # pragma: no cover - work is first-party
+            return
+
+        original = QueueWorker.__dict__.get("_register_signals")
+        if original is None or getattr(original, "__vise_wrapped__", False):
+            return
+
+        def leave_signals_alone(worker: Any) -> None:
+            """Do nothing, so the server keeps its own interrupt handler."""
+
+        leave_signals_alone.__vise_wrapped__ = True  # type: ignore[attr-defined]
+        QueueWorker._register_signals = leave_signals_alone  # type: ignore[assignment]
+        self.patched.append((QueueWorker, "_register_signals", original))
+
+        logger.debug(
+            "vise: left the interrupt handler with the server rather than the "
+            "worker pool, so Ctrl-C stops it"
+        )
 
     def _wrap_dispatch(self, recorder: Recorder) -> None:
         """Record a job being put on a queue.

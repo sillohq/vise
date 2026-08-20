@@ -547,3 +547,53 @@ class TestRealtimeWatcher:
         watcher.detach()
 
         assert not getattr(SilloEvent.trigger, "__vise_wrapped__", False)
+
+
+class TestInterrupts:
+    """`QueueWorker.run()` replaces the loop's SIGINT handler with its own
+    `stop`. That is right for a worker owning its process and catastrophic for
+    one inside a server: Ctrl-C stops the worker, never reaches uvicorn, and the
+    process hangs until it is killed — with nothing on screen to explain it."""
+
+    @staticmethod
+    def queued_app():
+        from sillo.work import setup_work
+
+        application = SilloApp(title="queued")
+        setup_work(application)
+        return application
+
+    def test_the_worker_no_longer_takes_the_handler(self):
+        from sillo.work.queue.workers import QueueWorker
+
+        watcher = QueueWatcher()
+        app = self.queued_app()
+        watcher.attach(app, Recorder())
+        try:
+            assert getattr(QueueWorker._register_signals, "__vise_wrapped__", False)
+        finally:
+            watcher.detach()
+
+    def test_registering_signals_becomes_a_no_op(self):
+        """Not an error — the worker still calls it, and must survive doing so."""
+        from sillo.work.queue.workers import QueueWorker
+
+        watcher = QueueWatcher()
+        watcher.attach(self.queued_app(), Recorder())
+        try:
+            QueueWorker._register_signals(object())
+        finally:
+            watcher.detach()
+
+    def test_detaching_gives_it_back(self):
+        """A worker run outside a server should still own its own interrupts."""
+        from sillo.work.queue.workers import QueueWorker
+
+        watcher = QueueWatcher()
+        watcher.attach(self.queued_app(), Recorder())
+        watcher.detach()
+
+        assert not getattr(QueueWorker._register_signals, "__vise_wrapped__", False)
+
+    def test_the_queue_watcher_attaches_to_a_worked_application(self):
+        assert QueueWatcher().probe(self.queued_app())
