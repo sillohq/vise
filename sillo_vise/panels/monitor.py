@@ -192,9 +192,11 @@ class RequestsPanel(Panel):
         requests = series["requests"]
         served = requests.total(5)
         failures = requests.errors(5)
+        recent = context.store.recent(EventKind.REQUEST, limit=40)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.REQUEST.value,
             tiles=[
                 rate_tile("Requests", requests),
                 duration_tile("p95 duration", requests),
@@ -230,8 +232,9 @@ class RequestsPanel(Panel):
                         size(event.response_bytes),
                         event.client or "—",
                     ]
-                    for event in context.store.recent(EventKind.REQUEST, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
         )
 
@@ -271,9 +274,11 @@ class QueriesPanel(Panel):
         queries = series["queries"]
         requests = series["requests"].total(5)
         repeated = self._n_plus_one(context)
+        recent = context.store.recent(EventKind.QUERY, limit=40)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.QUERY.value,
             tiles=[
                 tile(
                     "Queries / request",
@@ -317,8 +322,9 @@ class QueriesPanel(Panel):
                         number(event.rows),
                         event.connection,
                     ]
-                    for event in context.store.recent(EventKind.QUERY, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
             aside={
                 "label": "Repeated",
@@ -393,9 +399,11 @@ class CachePanel(Panel):
         misses = series["cache.miss"].total()
         looked = hits + misses
         ratio = (hits / looked * 100) if looked else 0.0
+        recent = context.store.recent(EventKind.CACHE, limit=40)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.CACHE.value,
             tiles=[
                 tile(
                     "Hit ratio",
@@ -435,8 +443,9 @@ class CachePanel(Panel):
                         f"{event.ttl}s" if event.ttl else "—",
                         duration(event.duration_ms),
                     ]
-                    for event in context.store.recent(EventKind.CACHE, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
             aside=self._hot_keys(context),
         )
@@ -493,9 +502,11 @@ class OutgoingPanel(Panel):
         series = context.store.series["outgoing"]
         calls = series.total()
         failed = series.errors()
+        recent = context.store.recent(EventKind.OUTGOING, limit=40)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.OUTGOING.value,
             tiles=[
                 rate_tile("Calls", series),
                 duration_tile("p95 duration", series),
@@ -540,8 +551,9 @@ class OutgoingPanel(Panel):
                         duration(event.duration_ms),
                         number(event.retries),
                     ]
-                    for event in context.store.recent(EventKind.OUTGOING, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
             aside=self._hosts(context),
         )

@@ -22,8 +22,16 @@ class TestDefaults:
     def test_dashboard_is_loopback_only_by_default(self):
         assert parse_config("").dashboard.access == "local"
 
-    def test_bodies_are_not_captured_by_default(self):
-        assert parse_config("").recorder.capture_bodies is False
+    def test_bodies_are_captured_by_default(self):
+        """A development server, loopback-only, whose Requests panel exists to
+        answer "what did the server actually send back"."""
+        assert parse_config("").recorder.capture_bodies is True
+
+    def test_capturing_can_be_turned_off_in_one_line(self):
+        assert (
+            parse_config("[recorder]\ncapture_bodies = false").recorder.capture_bodies
+            is False
+        )
 
     def test_source_is_recorded(self):
         assert parse_config("", source="/tmp/.vise").source == "/tmp/.vise"

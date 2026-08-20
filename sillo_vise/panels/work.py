@@ -84,9 +84,11 @@ class QueuesPanel(Panel):
         completed = int(series["jobs.completed"].total())
         failed = int(series["jobs.failed"].total())
         running = self._in_flight(context)
+        recent = context.store.recent(EventKind.JOB, limit=40)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.JOB.value,
             tiles=[
                 tile(
                     "In flight",
@@ -132,8 +134,9 @@ class QueuesPanel(Panel):
                         duration(event.duration_ms) if event.duration_ms else "—",
                         number(event.attempt),
                     ]
-                    for event in context.store.recent(EventKind.JOB, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
             aside=self._queues(context),
             note=""

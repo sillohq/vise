@@ -10,6 +10,7 @@ matching and the access gate are all exercised the way they will be in
 from __future__ import annotations
 
 import json
+import logging
 
 import pytest
 from sillo import SilloApp
@@ -427,3 +428,100 @@ class TestTrailingSlash:
     def test_a_panel_url_serves_the_interface(self, client):
         """The interface routes itself, so /queries has to reach the index."""
         assert get(client, "/queries").status_code == 200
+
+
+class TestDetail:
+    """What a table row opens. Every listed panel's rows carry an id, and the
+    id resolves to the event behind the cell."""
+
+    def test_a_request_row_opens_its_request(self, client):
+        client.get("/documents/8f21")
+        table = get(client, "/api/panels/requests").json()["table"]
+        detail = get(client, f"/api/detail/request/{table['ids'][0]}").json()
+        assert detail["event"]["path"] == "/documents/8f21"
+
+    def test_the_request_detail_carries_its_headers(self, client):
+        client.get("/", headers={"x-marker": "here"})
+        table = get(client, "/api/panels/requests").json()["table"]
+        detail = get(client, f"/api/detail/request/{table['ids'][0]}").json()
+        assert ["x-marker", "here"] in [
+            list(pair) for pair in detail["event"]["headers"]
+        ]
+
+    def test_the_request_detail_carries_the_response_body(self, client):
+        client.get("/")
+        table = get(client, "/api/panels/requests").json()["table"]
+        detail = get(client, f"/api/detail/request/{table['ids'][0]}").json()
+        assert detail["event"]["response_body"] == '{"ok":true}'
+
+    def test_credentials_are_still_redacted_in_the_detail(self, client):
+        client.get("/", headers={"authorization": "Bearer live_secret_value"})
+        table = get(client, "/api/panels/requests").json()["table"]
+        body = get(client, f"/api/detail/request/{table['ids'][0]}").content
+        assert b"live_secret_value" not in body
+
+    def test_the_request_detail_lists_what_it_caused(self, client):
+        app, installation = build()
+
+        async def busy(request, response):
+            installation.recorder.query("SELECT 1", duration_ms=1.0)
+            return response.json({})
+
+        app.get("/busy", handler=busy, name="api.busy")
+        try:
+            with TestClient(app) as test_client:
+                test_client.get("/busy")
+                table = test_client.get(f"{PREFIX}/api/panels/requests").json()["table"]
+                detail = test_client.get(
+                    f"{PREFIX}/api/detail/request/{table['ids'][0]}"
+                ).json()
+            assert detail["counts"]["query"] == 1
+        finally:
+            installation.shutdown()
+
+    def test_a_log_row_opens_its_line(self, client):
+        logging.getLogger("app.detail").warning("something to click")
+        table = get(client, "/api/panels/logs").json()["table"]
+        detail = get(client, f"/api/detail/log/{table['ids'][0]}").json()
+        assert detail["event"]["message"] == "something to click"
+
+    def test_a_caused_event_names_the_request_that_caused_it(self, client):
+        """Which is what turns "this query was slow" into "this query was slow,
+        and here is the route that ran it"."""
+        app, installation = build()
+
+        async def busy(request, response):
+            installation.recorder.query("SELECT slow", duration_ms=900.0)
+            return response.json({})
+
+        app.get("/busy", handler=busy, name="api.busy")
+        try:
+            with TestClient(app) as test_client:
+                test_client.get("/busy")
+                # Read the event directly rather than through the Queries
+                # panel: this application has no database, so that panel does
+                # not exist — which is the behaviour under test elsewhere.
+                events = test_client.get(f"{PREFIX}/api/events/query").json()["events"]
+                detail = test_client.get(
+                    f"{PREFIX}/api/detail/query/{events[0]['id']}"
+                ).json()
+            assert detail["request"]["route"] == "api.busy"
+        finally:
+            installation.shutdown()
+
+    def test_an_unknown_kind_is_404(self, client):
+        assert get(client, "/api/detail/nonsense/abc").status_code == 404
+
+    def test_an_evicted_event_is_404(self, client):
+        assert get(client, "/api/detail/request/nope").status_code == 404
+
+    def test_rows_that_are_summaries_carry_no_ids(self, client):
+        """A queue, a channel or a configuration key is not an event, and
+        giving a reader something to click that leads nowhere is worse than
+        giving them nothing."""
+        assert "ids" not in get(client, "/api/panels/config").json()["table"]
+
+    def test_every_id_matches_a_row(self, client):
+        client.get("/")
+        table = get(client, "/api/panels/requests").json()["table"]
+        assert len(table["ids"]) == len(table["rows"])

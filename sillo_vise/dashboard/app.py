@@ -189,6 +189,16 @@ class Dashboard:
             )
             return
 
+        if path.startswith("/api/detail/"):
+            kind, _, event_id = path[len("/api/detail/") :].partition("/")
+            found = self.api.detail(kind, event_id)
+            await _json(
+                send,
+                200 if found else 404,
+                found or {"error": "That event is no longer retained."},
+            )
+            return
+
         if path.startswith("/api/events/"):
             events = self.api.events(path[len("/api/events/") :], _limit(scope))
             await _json(

@@ -122,9 +122,19 @@ class RecorderConfig:
         redact: Header names to redact, on top of :data:`DEFAULT_REDACT`.
         redact_params: Query-string and form keys whose values are redacted.
         redact_bindings: Replace SQL bind parameters with their types.
-        capture_bodies: Keep request and response bodies. Off, because a body
-            is where the credential that is not in a header lives.
-        max_body_bytes: Ceiling on a captured body when *capture_bodies* is on.
+        capture_bodies: Keep request and response bodies, capped at
+            *max_body_bytes* and passed through the same redaction as
+            everything else.
+
+            On by default, which is a deliberate choice rather than an
+            oversight. A body is where the credential that is not in a header
+            lives, and that argues for off — but this is a development server,
+            the dashboard is loopback-only by default, and "what did the server
+            actually send back" is the question the Requests panel exists to
+            answer. Off is one line in ``.vise`` for anyone whose threat model
+            differs.
+        max_body_bytes: Ceiling on a captured body. A streamed download must
+            not be buffered into the dashboard on its way to the client.
     """
 
     enabled: bool = True
@@ -135,7 +145,7 @@ class RecorderConfig:
     redact: tuple[str, ...] = ()
     redact_params: tuple[str, ...] = ("token", "secret", "password", "api_key")
     redact_bindings: bool = False
-    capture_bodies: bool = False
+    capture_bodies: bool = True
     max_body_bytes: int = 16 * 1024
 
     @property

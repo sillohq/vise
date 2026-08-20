@@ -51,7 +51,7 @@ TEMPLATE = """\
 # redact = []                      # extra headers, on top of the built-in list
 # redact_params = ["token", "secret", "password", "api_key"]
 # redact_bindings = false          # replace SQL parameters with their types
-# capture_bodies = false           # off: a body is where the other credential is
+# capture_bodies = true            # request and response bodies, capped below
 # max_body_bytes = 16384
 
 [logs]

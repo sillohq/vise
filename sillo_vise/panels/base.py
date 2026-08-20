@@ -79,6 +79,8 @@ class Rendered:
 
     Attributes:
         id: The panel's id.
+        kind: The event kind this panel's rows are, when they are events. What
+            a row click opens, and empty for a panel whose rows are summaries.
         tiles: Stat tiles, four across.
         chart: A bar chart, when the panel has one.
         table: The main table.
@@ -91,6 +93,7 @@ class Rendered:
     """
 
     id: str
+    kind: str = ""
     tiles: list[dict[str, Any]] = dataclasses.field(default_factory=list)
     chart: dict[str, Any] | None = None
     table: dict[str, Any] | None = None
@@ -232,7 +235,9 @@ def state_column(label: str, cls: str = "") -> dict[str, str]:
 
 
 def table(
-    columns_: Sequence[dict[str, str]], rows: Sequence[Sequence[Any]]
+    columns_: Sequence[dict[str, str]],
+    rows: Sequence[Sequence[Any]],
+    ids: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Build a table.
 
@@ -240,11 +245,21 @@ def table(
         columns_: The columns.
         rows: The rows, whose cells are coerced to text here so a panel does
             not have to remember to.
+        ids: One event id per row, parallel to *rows*. A row with an id is
+            clickable and opens that event; a row without one is not. Rows that
+            are summaries rather than events — a queue, a channel, a
+            configuration key — have no id, and pretending otherwise would give
+            a reader something to click that leads nowhere.
 
     Returns:
         The table.
     """
-    return {
+    built = {
         "columns": list(columns_),
         "rows": [["" if cell is None else str(cell) for cell in row] for row in rows],
     }
+
+    if ids is not None:
+        built["ids"] = list(ids)
+
+    return built

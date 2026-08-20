@@ -140,18 +140,75 @@ class DashboardAPI:
         if event is None:
             return None
 
-        correlated = self.recorder.store.correlated(request_id)
+        return {"request": event.to_dict(), **self._caused(request_id)}
+
+    def detail(self, kind: str, event_id: str) -> dict[str, Any] | None:
+        """One event, in full, with whatever context it has.
+
+        This is what a table row opens. What "in full" means differs by kind and
+        that is the point: a request brings its headers, its bodies and
+        everything it caused; a query brings its statement and bindings; a job
+        brings its payload and traceback. The panels reduce each of those to a
+        table cell, and this is where the cell came from.
+
+        Args:
+            kind: The event kind's name.
+            event_id: The event's id.
+
+        Returns:
+            The event and its context, or None when the kind is unknown or the
+            event has fallen out of its ring.
+        """
+        try:
+            wanted = EventKind(kind)
+        except ValueError:
+            return None
+
+        event = self.recorder.store.find(wanted, event_id)
+        if event is None:
+            return None
+
+        detail: dict[str, Any] = {"kind": wanted.value, "event": event.to_dict()}
+
+        if wanted is EventKind.REQUEST:
+            detail.update(self._caused(event_id))
+            detail["bodies"] = self.config.recorder.capture_bodies
+            return detail
+
+        # Not a request, but very likely emitted during one. Naming its parent
+        # is what turns "this query was slow" into "this query was slow, and
+        # here is the route that ran it".
+        parent = self.recorder.store.request(event.request_id or "")
+        if parent is not None:
+            detail["request"] = {
+                "id": parent.id,
+                "method": parent.method,
+                "path": parent.full_path,
+                "status": parent.status,
+                "route": parent.route,
+            }
+
+        return detail
+
+    def _caused(self, request_id: str) -> dict[str, Any]:
+        """Everything one request caused, grouped by kind.
+
+        Args:
+            request_id: The request's id.
+
+        Returns:
+            The grouped events and their counts.
+        """
         grouped: dict[str, list[dict[str, Any]]] = {
             kind.value: [] for kind in _DETAIL_KINDS
         }
 
-        for caused in correlated:
+        for caused in self.recorder.store.correlated(request_id):
             bucket = grouped.get(caused.kind.value)
             if bucket is not None:
                 bucket.append(caused.to_dict())
 
         return {
-            "request": event.to_dict(),
             "caused": {kind: rows for kind, rows in grouped.items() if rows},
             "counts": {kind: len(rows) for kind, rows in grouped.items() if rows},
         }

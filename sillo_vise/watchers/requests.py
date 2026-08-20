@@ -17,6 +17,16 @@ Response bytes are counted by watching ``http.response.body`` messages go past,
 which is where the count actually is. uvicorn's access logger cannot report it
 because it never sees the assembled body, and a middleware that read
 ``content-length`` would be wrong for every streamed or chunked response.
+
+Bodies are captured the same way, by teeing both channels. The response side is
+easy — the messages go past on their way out. The request side is not: reading
+the body consumes it, so ``receive`` is wrapped to keep a copy of each chunk and
+hand the message on untouched. Getting that wrong does not produce a missing
+body, it produces an application that hangs waiting for a request it will never
+see, which is why the wrapper only ever *observes*.
+
+Both sides stop copying at ``recorder.max_body_bytes``. A streamed download must
+not be buffered into the dashboard on its way to the client.
 """
 
 from __future__ import annotations
@@ -94,9 +104,14 @@ class RequestRecorder:
         request_id = new_id()
         started = time.perf_counter()
 
+        capture = self.recorder.config.capture_bodies
+        ceiling = self.recorder.config.max_body_bytes
+
         status = 0
         response_headers: list[tuple[str, str]] = []
         written = 0
+        sent_body = bytearray()
+        received_body = bytearray()
 
         async def watch(message: Message) -> None:
             """Note what goes back to the client, then send it on.
@@ -110,13 +125,37 @@ class RequestRecorder:
                 status = message["status"]
                 response_headers = _decode(message.get("headers", ()))
             elif message["type"] == "http.response.body":
-                written += len(message.get("body", b""))
+                chunk = message.get("body", b"")
+                written += len(chunk)
+
+                if capture and len(sent_body) < ceiling:
+                    sent_body.extend(chunk[: ceiling - len(sent_body)])
 
             await send(message)
 
+        async def listen() -> Message:
+            """Keep a copy of what arrives, and hand it on untouched.
+
+            Returns:
+                The message the application asked for. Never a copy, and never
+                withheld: reading a body consumes it, and a watcher that
+                swallowed a chunk would hang the application rather than lose a
+                panel.
+            """
+            message = await receive()
+
+            if capture and message.get("type") == "http.request":
+                chunk = message.get("body", b"")
+                if chunk and len(received_body) < ceiling:
+                    received_body.extend(chunk[: ceiling - len(received_body)])
+
+            return message
+
+        source = listen if capture else receive
+
         with request_scope(request_id):
             try:
-                await self.app(scope, receive, watch)
+                await self.app(scope, source, watch)
             except Exception as error:
                 # The application raised past its own handlers. Record the
                 # request as a 500 before re-raising, or the one request that
@@ -128,12 +167,21 @@ class RequestRecorder:
                     started,
                     response_headers,
                     written,
+                    received_body,
+                    sent_body,
                 )
                 self.recorder.exception(error, request_id=request_id)
                 raise
             else:
                 self._record(
-                    scope, request_id, status, started, response_headers, written
+                    scope,
+                    request_id,
+                    status,
+                    started,
+                    response_headers,
+                    written,
+                    received_body,
+                    sent_body,
                 )
 
     def _record(
@@ -144,6 +192,8 @@ class RequestRecorder:
         started: float,
         response_headers: list[tuple[str, str]],
         written: int,
+        received_body: bytearray,
+        sent_body: bytearray,
     ) -> None:
         """Store the finished request.
 
@@ -154,6 +204,8 @@ class RequestRecorder:
             started: ``perf_counter`` reading from before the application ran.
             response_headers: Headers sent back.
             written: Body bytes sent back.
+            received_body: What the client sent, up to the ceiling.
+            sent_body: What went back, up to the ceiling.
         """
         client = scope.get("client")
 
@@ -171,6 +223,11 @@ class RequestRecorder:
             headers=_decode(scope.get("headers", ())),
             response_headers=response_headers,
             user=_user(scope),
+            # `or ""` so an empty capture is the empty *string*, not empty
+            # bytes: the field is declared `str`, and `b""` is falsy enough to
+            # skip redaction and then serialise as the literal text `b''`.
+            body=bytes(received_body) or "",
+            response_body=bytes(sent_body) or "",
         )
 
 

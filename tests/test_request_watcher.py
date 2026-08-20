@@ -156,3 +156,78 @@ class TestCorrelation:
 
         for event in requests_of(recorder):
             assert len(recorder.store.correlated(event.id)) == 1
+
+
+class TestBodies:
+    """A body is teed off both channels, capped, and redacted like everything
+    else. The request side is the delicate one: reading a body consumes it, so a
+    watcher that swallowed a chunk would hang the application."""
+
+    def test_the_response_body_is_captured(self, watched, recorder):
+        with TestClient(watched) as client:
+            response = client.get("/")
+        assert requests_of(recorder)[0].response_body == response.text
+
+    def test_the_request_body_is_captured(self, app, recorder):
+        async def echo(request, response):
+            body = await request.body
+            return response.json({"len": len(body)})
+
+        app.post("/echo", handler=echo, name="api.echo")
+        RequestWatcher().attach(app, recorder)
+
+        with TestClient(app) as client:
+            client.post("/echo", content=b'{"title":"a document"}')
+
+        assert '"title"' in requests_of(recorder)[0].body
+
+    def test_the_application_still_receives_its_body(self, app, recorder):
+        """The watcher observes; it never withholds."""
+        seen = {}
+
+        async def echo(request, response):
+            seen["body"] = await request.body
+            return response.json({})
+
+        app.post("/echo", handler=echo, name="api.echo")
+        RequestWatcher().attach(app, recorder)
+
+        with TestClient(app) as client:
+            client.post("/echo", content=b"hello there")
+
+        assert seen["body"] == b"hello there"
+
+    def test_a_large_body_is_capped(self, app, recorder):
+        from sillo_vise.config import RecorderConfig
+        from sillo_vise.recorder import Recorder
+
+        small = Recorder(RecorderConfig(max_body_bytes=64))
+
+        async def big(request, response):
+            return response.json({"payload": "x" * 5000})
+
+        app.get("/big", handler=big, name="api.big")
+        RequestWatcher().attach(app, small)
+
+        with TestClient(app) as client:
+            client.get("/big")
+
+        assert len(small.store.recent(EventKind.REQUEST)[0].response_body) < 200
+
+    def test_capturing_can_be_switched_off(self, app):
+        from sillo_vise.config import RecorderConfig
+        from sillo_vise.recorder import Recorder
+
+        off = Recorder(RecorderConfig(capture_bodies=False))
+        RequestWatcher().attach(app, off)
+
+        with TestClient(app) as client:
+            client.get("/")
+
+        assert off.store.recent(EventKind.REQUEST)[0].response_body == ""
+
+    def test_an_empty_body_is_the_empty_string(self, watched, recorder):
+        """Not empty bytes, which would serialise as the literal text b''."""
+        with TestClient(watched) as client:
+            client.get("/")
+        assert requests_of(recorder)[0].body == ""

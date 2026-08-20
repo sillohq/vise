@@ -81,6 +81,7 @@ class ExceptionsPanel(Panel):
 
         return Rendered(
             id=self.id,
+            kind=EventKind.EXCEPTION.value,
             tiles=[
                 tile(
                     "Groups",
@@ -128,6 +129,10 @@ class ExceptionsPanel(Panel):
                     ]
                     for group in groups
                 ],
+                # A row here is a *group*, not an event, so the id opened is
+                # the group's most recent occurrence — which is the one whose
+                # traceback somebody wants to read.
+                ids=[group["latest"] for group in groups],
             ),
             note="" if groups else "Nothing has raised since vise started.",
         )
@@ -155,12 +160,14 @@ class ExceptionsPanel(Panel):
                     "count": 1,
                     "first_seen": event.at,
                     "last_seen": event.at,
+                    "latest": event.id,
                     "handled": event.handled,
                 }
                 continue
 
             group["count"] += 1
             group["last_seen"] = event.at
+            group["latest"] = event.id
             # A group is only "handled" when every occurrence was. One that
             # reached a client is the fact worth surfacing.
             group["handled"] = group["handled"] and event.handled
@@ -188,9 +195,11 @@ class LogsPanel(Panel):
             Tiles, a chart and the tail.
         """
         series = context.store.series
+        recent = context.store.recent(EventKind.LOG, limit=60)
 
         return Rendered(
             id=self.id,
+            kind=EventKind.LOG.value,
             tiles=[
                 rate_tile("Lines", series["logs"]),
                 tile(
@@ -234,8 +243,9 @@ class LogsPanel(Panel):
                         event.logger,
                         event.route or "—",
                     ]
-                    for event in context.store.recent(EventKind.LOG, limit=60)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
         )
 
@@ -394,8 +404,11 @@ class MailPanel(Panel):
         for event in messages:
             counts[event.status] = counts.get(event.status, 0) + 1
 
+        recent = context.store.recent(EventKind.MAIL, limit=40)
+
         return Rendered(
             id=self.id,
+            kind=EventKind.MAIL.value,
             tiles=[
                 tile(
                     "Sent",
@@ -436,8 +449,9 @@ class MailPanel(Panel):
                         event.status,
                         event.mailer,
                     ]
-                    for event in context.store.recent(EventKind.MAIL, limit=40)
+                    for event in recent
                 ],
+                ids=[event.id for event in recent],
             ),
             note="" if messages else "No mail has been sent since vise started.",
         )
