@@ -1,0 +1,82 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'vise-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Trusted publishing, used when PYPI_TOKEN is not set.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Read the tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#vise-v}" >> "$GITHUB_OUTPUT"
+
+      # Three places carry the version, and a release that reports one it is not
+      # is worse than one that fails to build. sillo-core shipped 0.0.1a15 with
+      # __version__ still saying 0.0.1a14 because only two of them were checked.
+      - name: The tag, pyproject.toml and __version__ must agree
+        run: |
+          tag='${{ steps.version.outputs.version }}'
+          project=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          module=$(grep -m1 '^__version__' sillo_vise/__init__.py | cut -d'"' -f2)
+
+          echo "tag=$tag pyproject=$project module=$module"
+
+          if [ "$tag" != "$project" ] || [ "$tag" != "$module" ]; then
+            echo "These disagree. Bump all three and tag again."
+            exit 1
+          fi
+
+      - name: Install
+        run: uv sync --extra dev
+
+      - name: Test
+        run: uv run pytest -q
+
+      - name: Build
+        run: uv build
+
+      # A wheel that installs cleanly and then serves a blank page is the
+      # failure this catches: the interface is package data, and package data is
+      # what release configuration gets wrong.
+      - name: The wheel must carry the interface and the typing marker
+        run: |
+          wheel=$(ls dist/*.whl)
+          python - "$wheel" <<'PY'
+          import sys, zipfile
+          names = zipfile.ZipFile(sys.argv[1]).namelist()
+
+          missing = []
+          if not any(n.endswith("sillo_vise/py.typed") for n in names):
+              missing.append("py.typed")
+          if not any("dashboard/static/index.html" in n for n in names):
+              missing.append("the built interface")
+          if not any(n.endswith(".js") and "dashboard/static" in n for n in names):
+              missing.append("the interface's javascript")
+
+          if missing:
+              sys.exit("The wheel is missing: " + ", ".join(missing))
+
+          print("wheel carries py.typed and the interface")
+          PY
+
+      - name: Publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          if [ -n "$UV_PUBLISH_TOKEN" ]; then
+            uv publish
+          else
+            uv publish --trusted-publishing always
+          fi
