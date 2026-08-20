@@ -24,6 +24,7 @@ from __future__ import annotations
 import time
 from typing import Any, Awaitable, Callable, MutableMapping
 
+from ..introspect import RouteResolver
 from ..recorder import Recorder, new_id, request_scope, set_route
 
 __all__ = ["RequestRecorder", "RequestWatcher"]
@@ -40,24 +41,35 @@ class RequestRecorder:
     Attributes:
         app: The application this wraps.
         recorder: Where events go.
-        skip: Path prefixes that are recorded but never counted as application
-            traffic — the dashboard's own requests, which would otherwise
-            dominate every chart on the dashboard.
+        skip: Path prefixes that are not recorded at all — the dashboard's own
+            requests, which would otherwise dominate every chart on the
+            dashboard.
+        resolver: Names the route that handled each request. Optional: without
+            one, requests are recorded with an empty route name rather than
+            not recorded.
     """
 
-    __slots__ = ("app", "recorder", "skip")
+    __slots__ = ("app", "recorder", "skip", "resolver")
 
-    def __init__(self, app: Any, recorder: Recorder, skip: tuple[str, ...] = ()) -> None:
+    def __init__(
+        self,
+        app: Any,
+        recorder: Recorder,
+        skip: tuple[str, ...] = (),
+        resolver: RouteResolver | None = None,
+    ) -> None:
         """Wrap *app*.
 
         Args:
             app: The next ASGI application.
             recorder: Where events go.
             skip: Path prefixes not to record at all.
+            resolver: Names the route that handled each request.
         """
         self.app = app
         self.recorder = recorder
         self.skip = skip
+        self.resolver = resolver
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle one ASGI event.
@@ -148,7 +160,7 @@ class RequestRecorder:
             method=scope.get("method", ""),
             path=scope.get("path", ""),
             query=scope.get("query_string", b"").decode("latin-1"),
-            route=_route_name(scope),
+            route=self.resolver.resolve(scope) if self.resolver else "",
             status=status,
             duration_ms=(time.perf_counter() - started) * 1000,
             response_bytes=written,
@@ -174,26 +186,6 @@ def _decode(headers: Any) -> list[tuple[str, str]]:
     return [
         (name.decode("latin-1"), value.decode("latin-1")) for name, value in headers
     ]
-
-
-def _route_name(scope: Scope) -> str:
-    """The name of the route that handled a request, if it was named.
-
-    The framework puts the matched route on the scope during dispatch. A 404
-    never gets one, and neither does a request handled by a mounted ASGI
-    application, so an empty string is an ordinary answer rather than a
-    failure.
-
-    Args:
-        scope: The connection scope, after the application has run.
-
-    Returns:
-        The route's name, or an empty string.
-    """
-    route = scope.get("route") or scope.get("endpoint")
-    if route is None:
-        return ""
-    return getattr(route, "name", "") or getattr(route, "__name__", "") or ""
 
 
 def _user(scope: Scope) -> str:
@@ -228,11 +220,13 @@ class RequestWatcher:
 
     Attributes:
         skip: Path prefixes not recorded.
+        resolver: Built from the application at attach time, and shared so
+            that a reload can invalidate one cache rather than several.
     """
 
     name = "requests"
 
-    __slots__ = ("skip",)
+    __slots__ = ("skip", "resolver")
 
     def __init__(self, skip: tuple[str, ...] = ()) -> None:
         """Build the watcher.
@@ -241,6 +235,7 @@ class RequestWatcher:
             skip: Path prefixes not to record.
         """
         self.skip = skip
+        self.resolver: RouteResolver | None = None
 
     def attach(self, app: Any, recorder: Recorder) -> None:
         """Wrap the application.
@@ -249,7 +244,8 @@ class RequestWatcher:
             app: The application.
             recorder: Where events go.
         """
-        app.use(RequestRecorder, recorder, self.skip, raw=True)
+        self.resolver = RouteResolver(app)
+        app.use(RequestRecorder, recorder, self.skip, self.resolver, raw=True)
 
     @staticmethod
     def name_route(name: str) -> None:
