@@ -347,3 +347,48 @@ class TestRecorderOff:
         with TestClient(app) as test_client:
             assert test_client.get("/").json() == {"ok": True}
             assert test_client.get(f"{PREFIX}/api/meta").status_code == 404
+
+
+class TestAssets:
+    """The interface is a Vite build committed into the package."""
+
+    def test_the_index_is_served_at_the_mount(self, client):
+        response = get(client, "/")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_the_index_is_never_cached(self, client):
+        """A cached index serves the old bundle forever after a rebuild."""
+        assert "no-store" in get(client, "/").headers["cache-control"]
+
+    def test_a_hashed_asset_is_cached_forever(self):
+        from sillo_vise.dashboard.assets import _is_hashed
+
+        assert _is_hashed("index-Bgs7zFoq.css")
+
+    def test_a_hash_containing_a_hyphen_is_still_recognised(self):
+        """Vite's hashes are base64url and may contain a hyphen. Splitting on
+        the last one leaves three characters and misses the hash entirely."""
+        from sillo_vise.dashboard.assets import _is_hashed
+
+        assert _is_hashed("index-BLYE-R0z.js")
+
+    def test_a_deliberate_hyphenated_name_is_not(self):
+        from sillo_vise.dashboard.assets import _is_hashed
+
+        assert not _is_hashed("icons-outline.svg")
+
+    def test_traversal_out_of_the_static_directory_is_refused(self):
+        from sillo_vise.dashboard.assets import Assets
+
+        assert Assets().find("/../../../../etc/passwd") is None
+
+    def test_an_encoded_traversal_is_refused(self):
+        from sillo_vise.dashboard.assets import Assets
+
+        assert Assets().find("/..%2f..%2fetc/passwd") is None
+
+    def test_a_missing_file_is_none(self):
+        from sillo_vise.dashboard.assets import Assets
+
+        assert Assets().find("/assets/never-existed.js") is None

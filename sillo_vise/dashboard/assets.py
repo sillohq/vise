@@ -133,8 +133,12 @@ class Assets:
 def _is_hashed(name: str) -> bool:
     """Whether a filename carries a content hash.
 
-    Vite writes ``index-a91f3c2d.js``. A name shaped like that cannot change
-    contents without changing name, so it is safe to cache forever.
+    Vite writes ``index-Bgs7zFoq.js`` — the hash is base64url, not hex, which is
+    what the first version of this got wrong: it checked for hex digits, matched
+    nothing Vite actually emits, and quietly served every asset with no-cache.
+
+    A name shaped like this cannot change contents without changing name, so it
+    is safe to cache forever.
 
     Args:
         name: The filename.
@@ -143,7 +147,19 @@ def _is_hashed(name: str) -> bool:
         True when the name looks content-addressed.
     """
     stem = name.rsplit(".", 1)[0]
-    _, separator, suffix = stem.rpartition("-")
-    return bool(separator) and len(suffix) >= 8 and all(
-        character in "0123456789abcdefABCDEF_" for character in suffix
+    if "-" not in stem:
+        return False
+
+    # The last eight characters, not everything after the last hyphen: a
+    # base64url hash can contain a hyphen itself, and `index-BLYE-R0z.js` split
+    # on its last one leaves `R0z`, which is too short to look like a hash and
+    # so was served with no-cache.
+    suffix = stem[-8:]
+
+    return (
+        len(suffix) == 8
+        and all(character.isalnum() or character in "-_" for character in suffix)
+        # A hash has digits in it. Requiring at least one keeps a deliberate
+        # name like `icons-outline.svg` out of the immutable bucket.
+        and any(character.isdigit() for character in suffix)
     )
