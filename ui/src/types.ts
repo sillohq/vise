@@ -39,6 +39,11 @@ export interface Column {
 export interface Table {
   columns: Column[]
   rows: string[][]
+  /**
+   * One event id per row, parallel to `rows`. Present only on panels whose
+   * rows are events; a row with an id is clickable and opens it.
+   */
+  ids?: string[]
 }
 
 export interface Aside {
@@ -50,6 +55,8 @@ export interface Aside {
 
 export interface Rendered {
   id: string
+  /** The event kind this panel's rows are, or "" when they are summaries. */
+  kind: string
   tiles: Tile[]
   chart: Chart | null
   table: Table | null
@@ -80,6 +87,25 @@ export interface MissingPanel {
   name: string
   group: string
   reason: string
+}
+
+/** One event, in full, as `/api/detail/{kind}/{id}` returns it. */
+export interface Detail {
+  kind: string
+  event: Record<string, unknown>
+  /** Requests only: what this request caused, grouped by kind. */
+  caused?: Record<string, Array<Record<string, unknown>>>
+  counts?: Record<string, number>
+  /** Requests only: whether body capture is on, so the panel can say why not. */
+  bodies?: boolean
+  /** Everything else: the request that was in flight when this was emitted. */
+  request?: {
+    id: string
+    method: string
+    path: string
+    status: number
+    route: string
+  }
 }
 
 export interface Meta {

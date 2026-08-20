@@ -16,6 +16,7 @@ from the interface, which is a different thing from one that was never started.
 from __future__ import annotations
 
 import time
+import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -135,11 +136,23 @@ class Recorder:
         elif isinstance(event, OutgoingEvent):
             event.url = redactor.url(event.url)
 
-        elif isinstance(event, (LogEvent, ExceptionEvent)):
+        elif isinstance(event, LogEvent):
             event.message = redactor.text(event.message)
 
-        elif isinstance(event, JobEvent) and isinstance(event.payload, dict):
-            event.payload = redactor.params_of(event.payload)
+        elif isinstance(event, ExceptionEvent):
+            event.message = redactor.text(event.message)
+            # A traceback ends with the exception's own message and carries the
+            # source line of every frame, so anything the message holds it holds
+            # too. Redacting only the message left the secret one field away —
+            # which the redaction suite caught the moment tracebacks started
+            # being recorded at all.
+            event.traceback = redactor.text(event.traceback)
+
+        elif isinstance(event, JobEvent):
+            if isinstance(event.payload, dict):
+                event.payload = redactor.params_of(event.payload)
+            event.error = redactor.text(event.error)
+            event.traceback = redactor.text(event.traceback)
 
     def _measure(self, event: Event) -> None:
         """Update the series a kind feeds.
@@ -281,6 +294,18 @@ class Recorder:
         fields.setdefault("where", where_raised(error))
         fields.setdefault("route", current_route())
         fields.setdefault("job", current_job() or "")
+
+        # Formatted here rather than left to each caller. The traceback is the
+        # single most useful thing on the Exceptions panel, and the first
+        # version left it to whoever was recording — so the request path, which
+        # is where most exceptions come from, recorded none at all.
+        fields.setdefault(
+            "traceback",
+            "".join(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            ),
+        )
+
         return self.emit(ExceptionEvent(**fields))  # type: ignore[return-value]
 
     def log(self, level: str, message: str, **fields: Any) -> LogEvent:

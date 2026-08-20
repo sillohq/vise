@@ -16,10 +16,17 @@ export function Panel({
   panel,
   rendered,
   live,
+  recording,
+  onToggle,
+  onOpen,
 }: {
   panel: PanelSummary
   rendered: Rendered | null
   live: boolean
+  recording: boolean
+  onToggle: () => void
+  /** Called with the kind and id of a row somebody clicked. */
+  onOpen: (kind: string, id: string) => void
 }) {
   return (
     <main className="panel">
@@ -32,10 +39,18 @@ export function Panel({
 
         <div className="panel__status">
           <span className="panel__chip">
-            <span className="panel__pulse" />
+            <span className={`panel__pulse${live ? '' : ' panel__pulse--off'}`} />
             {live ? 'Live' : 'Paused'}
           </span>
           <span className="panel__chip">Last 1h</span>
+          <button
+            type="button"
+            className="panel__chip panel__chip--action"
+            onClick={onToggle}
+            title={recording ? 'Stop collecting' : 'Start collecting again'}
+          >
+            {recording ? 'Pause' : 'Resume'}
+          </button>
         </div>
       </div>
 
@@ -64,6 +79,11 @@ export function Panel({
               <Table
                 table={rendered.table}
                 empty={emptyMessage(panel)}
+                onOpen={
+                  rendered.kind
+                    ? id => onOpen(rendered.kind, id)
+                    : undefined
+                }
               />
               {rendered.aside ? <Rail aside={rendered.aside} /> : null}
             </div>

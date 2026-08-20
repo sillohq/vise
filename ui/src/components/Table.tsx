@@ -14,8 +14,18 @@
 import type { Aside, Table as TableData } from '../types'
 import { columnClass, dotFor, pillFor } from '../tone'
 
-export function Table({ table, empty }: { table: TableData; empty: string }) {
+export function Table({
+  table,
+  empty,
+  onOpen,
+}: {
+  table: TableData
+  empty: string
+  /** Called with a row's event id. Absent when the rows are not events. */
+  onOpen?: (id: string) => void
+}) {
   const classes = table.columns.map(column => columnClass(column.cls))
+  const ids = table.ids
 
   return (
     <div className="table">
@@ -34,20 +44,43 @@ export function Table({ table, empty }: { table: TableData; empty: string }) {
               </tr>
             </thead>
             <tbody>
-              {table.rows.map((row, rowIndex) => (
-                <tr key={`${rowIndex}-${row[0] ?? ''}`}>
-                  {row.map((cell, index) => {
-                    const pill =
-                      table.columns[index]?.kind === 'state' ? pillFor(cell) : ''
+              {table.rows.map((row, rowIndex) => {
+                const id = ids?.[rowIndex]
+                const open = id && onOpen ? () => onOpen(id) : undefined
 
-                    return (
-                      <td key={index} className={classes[index]} title={cell}>
-                        {pill ? <span className={pill}>{cell}</span> : cell}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
+                return (
+                  <tr
+                    key={`${rowIndex}-${id ?? row[0] ?? ''}`}
+                    className={open ? 'table__row--open' : undefined}
+                    onClick={open}
+                    // Reachable by keyboard, because a row that only responds
+                    // to a mouse is a row half the readers cannot open.
+                    tabIndex={open ? 0 : undefined}
+                    role={open ? 'button' : undefined}
+                    onKeyDown={
+                      open
+                        ? event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              open()
+                            }
+                          }
+                        : undefined
+                    }
+                  >
+                    {row.map((cell, index) => {
+                      const pill =
+                        table.columns[index]?.kind === 'state' ? pillFor(cell) : ''
+
+                      return (
+                        <td key={index} className={classes[index]} title={cell}>
+                          {pill ? <span className={pill}>{cell}</span> : cell}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

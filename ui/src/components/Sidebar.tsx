@@ -5,27 +5,42 @@
  * is not sent, and a panel whose watcher is not collecting is not in it. So this
  * renders what it is given without asking whether anything should be hidden —
  * "live only" is a decision made once, on the Python side, where the probes are.
+ *
+ * It also carries what the mocked-up browser chrome used to: which application
+ * this is, and where. That was a decorative frame around a real tool, and a
+ * fake address bar in something you reach through a real one is a strange thing
+ * to look at every day.
  */
 
-import type { Group } from '../types'
+import type { Group, Meta } from '../types'
 import { Mark, iconFor } from '../icons'
 
 export function Sidebar({
   groups,
   active,
   onSelect,
-  title,
+  meta,
 }: {
   groups: Group[]
   active: string
   onSelect: (id: string) => void
-  title: string
+  meta: Meta
 }) {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
         <Mark />
-        <span>{title}</span>
+        <span>{meta.dashboard.title}</span>
+        <span className="sidebar__env">{meta.app.environment}</span>
+      </div>
+
+      <div className="sidebar__app">
+        <div className="sidebar__appName" title={meta.app.name}>
+          {meta.app.name}
+        </div>
+        <div className="sidebar__appUrl" title={meta.app.target}>
+          {meta.app.url}
+        </div>
       </div>
 
       {groups.map(group => (

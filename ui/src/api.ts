@@ -7,7 +7,7 @@
  * path would work on the default and nowhere else.
  */
 
-import type { Meta, Rendered } from './types'
+import type { Detail, Meta, Rendered } from './types'
 
 /**
  * The prefix the dashboard is mounted under, worked out from the current URL.
@@ -79,6 +79,11 @@ export function fetchMeta(): Promise<Meta> {
 /** One panel's current contents. */
 export function fetchPanel(id: string): Promise<Rendered> {
   return json<Rendered>(`/api/panels/${id}`)
+}
+
+/** One event, in full. What a table row opens. */
+export function fetchDetail(kind: string, id: string): Promise<Detail> {
+  return json<Detail>(`/api/detail/${kind}/${encodeURIComponent(id)}`)
 }
 
 /** One of the recorder's own actions: pause, resume or clear. */

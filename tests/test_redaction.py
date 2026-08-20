@@ -196,3 +196,36 @@ class TestTheNetUnderTheNet:
 
     def test_a_url_credential_is_caught(self):
         assert "hunter2" not in Redactor().text("dialling postgres://me:hunter2@db/app")
+
+
+class TestTracebacks:
+    """A traceback ends with the exception's own message and carries the source
+    line of every frame, so anything the message holds it holds too."""
+
+    def test_a_credential_in_a_traceback_is_redacted(self, recorder):
+        try:
+            raise ValueError(f"bad token={SECRET}")
+        except ValueError as error:
+            recorder.exception(error)
+
+        assert SECRET not in stored_text(recorder)
+
+    def test_the_traceback_is_still_readable(self, recorder):
+        try:
+            raise ValueError("ordinary failure")
+        except ValueError as error:
+            recorder.exception(error)
+
+        assert (
+            "ValueError: ordinary failure"
+            in recorder.store.recent(EventKind.EXCEPTION)[0].traceback
+        )
+
+    def test_a_job_traceback_is_redacted(self, recorder):
+        recorder.job(
+            "mail.send",
+            status="failed",
+            error=f"failed with token={SECRET}",
+            traceback=f'  File "x.py", line 1\\n    send(token="{SECRET}")\\nValueError: token={SECRET}',
+        )
+        assert SECRET not in stored_text(recorder)

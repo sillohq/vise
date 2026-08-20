@@ -18,7 +18,6 @@ middleware.
 from __future__ import annotations
 
 import inspect
-import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -125,13 +124,9 @@ class ExceptionWatcher(Watcher):
         if self.recorder is None or not isinstance(error, BaseException):
             return
 
-        self.recorder.exception(
-            error,
-            handled=handled,
-            traceback="".join(
-                traceback.format_exception(type(error), error, error.__traceback__)
-            ),
-        )
+        # The traceback is filled in by the recorder, which formats it for
+        # every path rather than leaving each caller to remember.
+        self.recorder.exception(error, handled=handled)
 
     def detach(self) -> None:
         """Put every wrapped handler back."""

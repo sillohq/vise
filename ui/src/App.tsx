@@ -12,13 +12,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { fetchMeta, mountPath, performAction } from './api'
-import { Chrome } from './components/Chrome'
+import { fetchDetail, fetchMeta, mountPath, performAction } from './api'
+import { Detail } from './components/Detail'
 import { Panel } from './components/Panel'
 import { Sidebar } from './components/Sidebar'
 import { Failed, Loading, NoPanels } from './components/States'
 import { useLivePanel } from './live'
-import type { Meta, PanelSummary } from './types'
+import type { Detail as DetailData, Meta, PanelSummary } from './types'
 
 /** How long to wait before retrying after the server goes away. */
 const RETRY_MS = 2000
@@ -38,11 +38,21 @@ function panelFromUrl(): string | null {
   return rest || null
 }
 
+/** What the drawer is showing, if anything. */
+interface Opened {
+  kind: string
+  id: string
+}
+
 export function App() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [active, setActive] = useState<string | null>(panelFromUrl)
   const [recording, setRecording] = useState(true)
+
+  const [opened, setOpened] = useState<Opened | null>(null)
+  const [detail, setDetail] = useState<DetailData | null>(null)
+  const [detailError, setDetailError] = useState('')
 
   const load = useCallback(() => {
     setError(null)
@@ -79,7 +89,10 @@ export function App() {
     [panels, active],
   )
 
-  const live = useLivePanel(panel?.id ?? null, recording)
+  // The live feed pauses while a drawer is open. A table redrawing underneath
+  // somebody reading one of its rows is disorienting, and the row they clicked
+  // may not be in the next snapshot at all.
+  const live = useLivePanel(panel?.id ?? null, recording && opened === null)
 
   // Keep the address bar on the open panel, so it can be linked and so the back
   // button walks back through the panels somebody actually looked at.
@@ -114,6 +127,33 @@ export function App() {
     if (meta) document.title = `${meta.dashboard.title} — ${meta.app.name}`
   }, [meta])
 
+  useEffect(() => {
+    if (!opened) {
+      setDetail(null)
+      setDetailError('')
+      return
+    }
+
+    let cancelled = false
+    setDetail(null)
+    setDetailError('')
+
+    fetchDetail(opened.kind, opened.id)
+      .then(found => {
+        if (!cancelled) setDetail(found)
+      })
+      .catch((problem: Error) => {
+        if (!cancelled) setDetailError(problem.message)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [opened])
+
+  const open = useCallback((kind: string, id: string) => setOpened({ kind, id }), [])
+  const close = useCallback(() => setOpened(null), [])
+
   const toggle = useCallback(() => {
     const next = !recording
     setRecording(next)
@@ -122,33 +162,30 @@ export function App() {
 
   if (error && !meta) return <Failed error={error} onRetry={load} />
   if (!meta) return <Loading />
+  if (panel === null) return <NoPanels missing={meta.missing} />
 
   return (
     <div className="shell">
-      <Chrome
-        meta={meta}
+      <Sidebar groups={meta.groups} active={panel.id} onSelect={setActive} meta={meta} />
+
+      <Panel
+        panel={panel}
+        rendered={live.rendered}
+        live={recording && live.connected}
         recording={recording}
-        connected={live.connected}
         onToggle={toggle}
+        onOpen={open}
       />
 
-      {panel === null ? (
-        <NoPanels missing={meta.missing} />
-      ) : (
-        <div className="body">
-          <Sidebar
-            groups={meta.groups}
-            active={panel.id}
-            onSelect={setActive}
-            title={meta.dashboard.title}
-          />
-          <Panel
-            panel={panel}
-            rendered={live.rendered}
-            live={recording && live.connected}
-          />
-        </div>
-      )}
+      {opened ? (
+        <Detail
+          detail={detail}
+          loading={detail === null && !detailError}
+          error={detailError}
+          onClose={close}
+          onOpen={open}
+        />
+      ) : null}
     </div>
   )
 }
