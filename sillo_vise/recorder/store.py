@@ -141,21 +141,10 @@ class Store:
             The same event, so a caller can hold onto it.
         """
         with self._lock:
-            ring = self._rings[event.kind]
+            if event.request_id and event.kind is not EventKind.REQUEST:
+                self._correlate(event)
 
-            if event.kind is EventKind.REQUEST:
-                if len(ring) == ring.maxlen and ring:
-                    self._by_request.pop(ring[0].request_id or "", None)
-            elif event.request_id:
-                correlated = self._by_request.get(event.request_id)
-                if correlated is not None and len(correlated) < MAX_CORRELATED:
-                    correlated.append(event)
-
-            ring.append(event)
-
-            if event.kind is EventKind.REQUEST and event.request_id:
-                self._by_request.setdefault(event.request_id, [])
-
+            self._rings[event.kind].append(event)
             self._counters[event.kind.value] += 1
             subscribers = list(self._subscribers)
 
@@ -166,6 +155,39 @@ class Store:
             subscriber.offer(event)
 
         return event
+
+    def _correlate(self, event: Event) -> None:
+        """File *event* under the request that caused it.
+
+        The request itself is stored last — its duration and status are not
+        known until it finishes — so the queries and cache reads it caused
+        arrive *before* it does. Indexing only against requests already in the
+        ring would therefore correlate nothing at all, which is how this was
+        first written and what the smoke test caught.
+
+        The index is instead keyed independently and capped at the same size
+        as the request ring, evicting in insertion order. That bounds it
+        whether or not the matching request ever lands — a client that
+        disconnects mid-request leaves correlated events behind, and without a
+        cap they would accumulate for the life of the process.
+
+        Called with the lock held.
+
+        Args:
+            event: A non-request event carrying a request id.
+        """
+        assert event.request_id is not None
+
+        correlated = self._by_request.get(event.request_id)
+        if correlated is None:
+            if len(self._by_request) >= self.buffer:
+                # Python dictionaries iterate in insertion order, so the first
+                # key is the oldest request still indexed.
+                self._by_request.pop(next(iter(self._by_request)), None)
+            correlated = self._by_request[event.request_id] = []
+
+        if len(correlated) < MAX_CORRELATED:
+            correlated.append(event)
 
     # -- reading --------------------------------------------------------
 
