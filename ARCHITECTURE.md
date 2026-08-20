@@ -105,6 +105,8 @@ because the alternative is no panel at all.
 | Queries | `execute_query`, `execute_query_dict`, `execute_insert` on the classes of live Tortoise connections | Tortoise's `db_client` log line carries the query and no duration, because it is written *before* the statement runs |
 | Outgoing | `HTTPClient._send` | Client middleware is per instance and a project builds clients wherever it likes. `_send` is private and is the only seam that returns the response — so the only one that can see a status code |
 | Schedules | `SchedulerManager._execute` | The manager knows a job's next fire, not how its last run went |
+| Queues | `Dispatchable.dispatch`, `QueueWorker._process_job`, `Job.fire` | `SyncConnection` — what `setup_work` installs — has no middleware layer at all |
+| Real-time | `Event.trigger` and `trigger_async` | See below: the emitter's `_dispatch` is the wrong seam |
 
 Each wrapper marks itself `__vise_wrapped__` so a second attach — after a reload
 — recognises a method it already wrapped rather than wrapping the wrapper.
@@ -112,6 +114,32 @@ Each wrapper marks itself `__vise_wrapped__` so a second attach — after a relo
 The Queries watcher patches from `client.__dict__` rather than through
 `getattr`, so a subclass that does not override a method does not get the base's
 wrapped onto it as well, which would record one statement twice.
+
+## What building the example found
+
+Every one of these was a watcher that attached, reported itself healthy, and
+showed nothing or showed something false. They are grouped here because they
+share a shape: a probe that answers a slightly different question from the one
+the panel asks.
+
+- **`Event._dispatch` is the wrong seam.** It runs only on the *receive* side of
+  a networked transport, so on the memory backend every project starts with it
+  is never called. `emit()` goes through `Event.trigger`, which is where the
+  listeners actually run and which returns the execution stats the panel wants.
+- **`setup_work` puts an `EventDispatcher` at `state["events"]`** — a queue
+  object, not an `EventEmitter`. Reading that key and hoping meant wrapping a
+  method that was not there. The emitter is now duck-typed.
+- **Tortoise connections are task-scoped.** `connections.all()` is empty when
+  read from the dashboard's request task however healthy the database is, so
+  the Queries probe asks the *manager* whether it initialised.
+- **`SchedulerManager` has no `jobs` attribute**; the accessor is `list()`, and
+  a job's next fire is `next_run_time`.
+- **`WorkerPool` keeps its workers on `_workers`** and reports no `WorkerStats`,
+  so the numbers are summed off the workers themselves.
+- **`QueueWorker._process_job` catches its own exceptions**, so from outside it
+  a failed job looks exactly like a successful one. `Job.fire` is the only place
+  the exception is visible, and the watcher tracks which ids failed so the two
+  wrappers do not file contradictory rows for one job.
 
 ## Things that look like bugs and are not
 

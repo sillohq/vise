@@ -252,6 +252,24 @@ deliberate rather than pending.
 `CHANGELOG.md` carries the full list, and `ARCHITECTURE.md` explains the three
 places vise monkeypatches and why each was the only measurement point available.
 
+## The example
+
+`example/` is a working application with every subsystem switched on — database,
+cache, queues, workers, schedules, websockets, events, outgoing calls and mail —
+so all fourteen panels are live in one process with nothing to install and
+nothing to start.
+
+```bash
+cd example
+vise serve            # then open /__sillo/foreman/
+python traffic.py     # in another terminal
+```
+
+`traffic.py` drives the application the way a person would but faster: reads,
+writes, searches, queues exports that fail on purpose, opens websockets, and
+asks for the route that raises. See `example/README.md` for what makes each
+panel live and what is worth clicking.
+
 ## Development
 
 ```bash
