@@ -152,7 +152,8 @@ def _configuration() -> ViseConfig:
         return load_config()
 
     try:
-        return parse_config(_to_toml(json.loads(raw)))
+        handed = json.loads(raw)
+        return parse_config(_to_toml(handed["sections"]), source=handed.get("source"))
     except Exception:  # noqa: BLE001 - a mangled handoff should not stop the server
         return load_config()
 
@@ -168,8 +169,12 @@ def _serialise(config: ViseConfig) -> dict[str, Any]:
         of the same user, not over a network.
     """
     data = dataclasses.asdict(config)
-    data.pop("source", None)
-    return data
+
+    # `source` is not a section, so it cannot travel in the TOML body. It is
+    # carried alongside and put back, because the banner prints it and a
+    # reloading server that claimed "no .vise" while reading one would be
+    # quietly lying about where its settings came from.
+    return {"sections": data, "source": config.source}
 
 
 def _to_toml(data: dict[str, Any]) -> str:
