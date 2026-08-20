@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sillo-vise"
+version = "0.1.0"
+description = "The Sillo development server — vise serve, with the Foreman operations dashboard built in."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+authors = [
+    {name = "Chidebele Dunamis", email = "techwithdunamix@gmail.com"}
+]
+keywords = ["sillo", "vise", "foreman", "dashboard", "dev-server", "observability", "asgi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+dependencies = [
+    # The console, the middleware contract, the route table and the work
+    # types all come from the framework. Nothing here reaches for the ORM:
+    # the Queries panel probes for it and hides itself when it is absent.
+    "sillo-framework>=0.2.1",
+    "uvicorn>=0.27.0",
+    # tomllib is standard from 3.11. Below that, .vise needs a parser.
+    "tomli>=2.0.1; python_version < '3.11'",
+]
+
+[project.scripts]
+vise = "sillo_vise.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/sillohq/vise"
+Repository = "https://github.com/sillohq/vise"
+Documentation = "https://docs.sillo.build"
+Issues = "https://github.com/sillohq/vise/issues"
+
+[project.optional-dependencies]
+watch = ["watchfiles>=0.21.0"]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+    "httpx>=0.27.0",
+    "watchfiles>=0.21.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["sillo_vise"]
+# py.typed has no extension and the dashboard build output is generated, so
+# neither is picked up by the default include rules. A wheel without the
+# static directory installs cleanly and then serves a blank page.
+artifacts = [
+    "sillo_vise/py.typed",
+    "sillo_vise/dashboard/static/**",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+ignore_missing_imports = true
