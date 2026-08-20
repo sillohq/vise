@@ -21,8 +21,12 @@ where a dashboard showing green would be lying.
 
 from __future__ import annotations
 
+import asyncio
 import time
+import traceback
 from typing import Any
+
+import anyio
 
 from ..recorder import Recorder, job_scope
 from .base import Availability, Watcher, available, unavailable
@@ -121,8 +125,6 @@ class QueueMiddleware:
             task: The task that failed.
             error: What it raised.
         """
-        import traceback
-
         task_id = _id(task)
         self.recorder.job(
             _name(task),
@@ -310,8 +312,6 @@ def _reachable(backend: Any) -> bool:
         return True
 
     try:
-        import anyio
-
         return bool(anyio.from_thread.run(ping))
     except Exception:  # noqa: BLE001 - outside a loop, or the queue is down
         return _sync_ping(ping)
@@ -326,8 +326,6 @@ def _sync_ping(ping: Any) -> bool:
     Returns:
         Whether it answered.
     """
-    import asyncio
-
     try:
         return bool(asyncio.run(ping()))
     except Exception:  # noqa: BLE001 - the queue is down, which is the answer
