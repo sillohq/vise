@@ -2,15 +2,20 @@
 sillo_vise.cli.serve — ``vise serve``.
 
 Flags override the ``.vise`` file, and only the ones actually typed do. That
-constraint is why the boolean settings are declared as *pairs* — ``--reload``
-and ``--no-reload`` — rather than as one flag with a default.
+constraint is what decides how the boolean settings are spelled here.
 
-A console flag always has a value: absent from the command line, it reports its
-default, and nothing distinguishes that from somebody typing it. A single
-``--reload`` defaulting to true would therefore override ``reload = false`` in
-``.vise`` on every run, which is precisely the bug this file is arranged to
-avoid. Two flags, both defaulting off, mean "neither was typed" is a state that
-can be observed.
+A console flag always has a value. Absent from the command line it reports its
+default, and nothing distinguishes that from somebody typing it — so a
+``--reload`` defaulting to true would override ``reload = false`` in ``.vise``
+on every run. Declaring ``--reload`` and ``--no-reload`` as two flags does not
+help either: ``Flag`` registers both spellings itself, so the second declaration
+collides with the first.
+
+An :class:`~sillo.console.Option` with ``on``/``off`` choices is the form that
+can express "not given", because an option nobody typed is ``None``. So the
+boolean settings are ``--reload on``, ``--dashboard off`` and so on. Slightly
+more to type, and the only spelling that cannot silently discard a project's
+configuration.
 """
 
 from __future__ import annotations
@@ -25,8 +30,8 @@ from .discover import DEFAULT_APPS, discover_target
 
 __all__ = ["Serve"]
 
-#: Paired boolean flags, and the setting each one resolves to.
-_PAIRED: dict[str, tuple[str, str]] = {
+#: On/off options, and the setting each one resolves to.
+_SWITCHES: dict[str, tuple[str, str]] = {
     "reload": ("server", "reload"),
     "dashboard": ("dashboard", "enabled"),
     "record": ("recorder", "enabled"),
@@ -51,12 +56,9 @@ class Serve(Command):
         # bad trade for one saved character.
         Option("host", help="Address to bind"),
         Option("port", short="p", type=int, help="Port to bind"),
-        Flag("reload", help="Restart when watched files change"),
-        Flag("no-reload", help="Do not restart on changes"),
-        Flag("dashboard", help="Mount the Foreman dashboard"),
-        Flag("no-dashboard", help="Do not mount the dashboard"),
-        Flag("record", help="Collect what the application does"),
-        Flag("no-record", help="Collect nothing, and instrument nothing"),
+        Option("reload", choices=["on", "off"], help="Restart when watched files change"),
+        Option("dashboard", choices=["on", "off"], help="Mount the Foreman dashboard"),
+        Option("record", choices=["on", "off"], help="Collect what the application does"),
         Option("access", choices=["local", "token", "open"], help="Who may reach the dashboard"),
         Option("level", choices=["debug", "info", "warning", "error"], help="Log level"),
         Option("style", choices=["vise", "plain", "json"], help="Log style"),
@@ -116,34 +118,13 @@ class Serve(Command):
         if (style := self.option("style")) is not None:
             put("logs", "style", style)
 
-        for flag, (section, key) in _PAIRED.items():
-            wanted = self._paired(flag)
-            if wanted is not None:
-                put(section, key, wanted)
+        for name, (section, key) in _SWITCHES.items():
+            given = self.option(name)
+            if given is not None:
+                put(section, key, given == "on")
 
         if self.flag("quiet"):
             put("logs", "banner", False)
             put("logs", "access", False)
 
         return overrides
-
-    def _paired(self, name: str) -> bool | None:
-        """Resolve a ``--x`` / ``--no-x`` pair.
-
-        Args:
-            name: The positive flag's name.
-
-        Returns:
-            True, False, or None when neither was typed.
-
-        Raises:
-            SystemExit: Through :meth:`fail`, when both were typed. Guessing
-                which one a person meant is worse than telling them.
-        """
-        on = self.flag(name)
-        off = self.flag(f"no-{name}")
-
-        if on and off:
-            self.fail(f"--{name} and --no-{name} cannot both be given.")
-
-        return True if on else False if off else None
