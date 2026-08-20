@@ -89,13 +89,20 @@ STATUS_CLIENT_ERROR = Style(fg="yellow")
 #: is the thing that most needs to catch an eye.
 STATUS_SERVER_ERROR = Style(fg="#fc0345", bold=True)
 
-#: One style per log level.
+#: One style per log level, under every name that level goes by. The access
+#: log and the JSON formatter use the full names; the aligned formatter
+#: abbreviates them to fit a fixed column, and a lookup that only knew the full
+#: names would silently render every warning grey.
 LEVELS: dict[str, Style] = {
     "debug": Style(fg="grey"),
     "info": Style(fg="cyan"),
     "warning": Style(fg="yellow"),
+    "warn": Style(fg="yellow"),
     "error": Style(fg="#fc0345"),
+    "err": Style(fg="#fc0345"),
     "critical": Style(fg="white", bg="#fc0345", bold=True),
+    "crit": Style(fg="white", bg="#fc0345", bold=True),
+    "fatal": Style(fg="white", bg="#fc0345", bold=True),
 }
 
 
