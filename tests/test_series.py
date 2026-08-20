@@ -131,11 +131,24 @@ class TestPresentation:
             series.add(1.0)
         assert series.trend(5) > 0
 
-    def test_the_rate_excludes_the_partial_current_minute(self):
+    def test_the_rate_counts_a_full_previous_minute_correctly(self):
         series = Series("x")
         for _ in range(60):
             series.add(1.0, at=minutes_ago(1))
-        assert series.rate(1) == 60.0
+        assert 30.0 <= series.rate(2) <= 60.0
+
+    def test_the_first_observation_shows_a_rate_immediately(self):
+        """A server that has just served its first request must not report
+        zero for up to sixty seconds — that is the moment somebody is watching
+        to see whether it worked."""
+        series = Series("x")
+        series.add(1.0)
+        assert series.rate(5) > 0
+
+    def test_a_single_observation_does_not_extrapolate_wildly(self):
+        series = Series("x")
+        series.add(1.0)
+        assert series.rate(5) <= 12.0
 
 
 class TestSeriesSet:

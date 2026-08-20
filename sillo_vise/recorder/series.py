@@ -253,12 +253,17 @@ class Series:
         """
         return [bucket.mean for bucket in self.buckets(minutes)]
 
-    def rate(self, minutes: int = 1) -> float:
+    def rate(self, minutes: int = 5) -> float:
         """Observations per minute over the last *minutes*.
 
-        The current minute is partial, so including it makes every reading dip
-        at the top of the minute and recover by the end of it. It is excluded
-        unless it is all there is.
+        Divided by *elapsed* time rather than by whole buckets. The obvious
+        implementations are both wrong for a development server. Dividing by
+        the bucket count makes every reading dip at the top of a minute and
+        recover by the end of it, because the newest bucket is a fraction of a
+        minute being counted as a whole one. Dropping the current bucket
+        instead makes a server that has just served its first request report
+        zero for up to sixty seconds — which is precisely the moment somebody
+        is watching to see whether it worked.
 
         Args:
             minutes: How far back to average.
@@ -266,8 +271,17 @@ class Series:
         Returns:
             Observations per minute.
         """
-        recent = self.buckets(minutes + 1)[:-1] or self.buckets(1)
-        return sum(bucket.count for bucket in recent) / len(recent)
+        wanted = max(1, minutes)
+        counted = sum(bucket.count for bucket in self.buckets(wanted))
+
+        # Whole minutes behind the current one, plus however much of the
+        # current one has actually happened. Floored at a few seconds so the
+        # first observation of a minute does not divide by nearly zero and
+        # report a rate of several thousand.
+        into_minute = max(5.0, time.time() % 60)
+        span = (wanted - 1) + into_minute / 60
+
+        return counted / span
 
     def total(self, minutes: int | None = None) -> int:
         """Observations over a window.
