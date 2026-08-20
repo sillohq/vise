@@ -26,7 +26,7 @@ from .. import __version__
 from ..config import CONFIG_FILENAME, ENV_PREFIX, ViseConfig
 from ..introspect import walk_routes
 from ..logs.format import elapsed, number, truncate
-from .base import Panel, PanelContext, Rendered, columns, table
+from .base import Panel, PanelContext, Rendered, columns, state_column, table
 from .tiles import TONE_GOOD, TONE_INFO, TONE_MUTED, TONE_WARN, tile
 
 __all__ = ["ConfigPanel", "RoutesPanel"]
@@ -90,7 +90,7 @@ class RoutesPanel(Panel):
                     "Method",
                     "Path",
                     ("Name", "hidden md:table-cell"),
-                    ("Auth", "hidden sm:table-cell"),
+                    state_column("Auth", "hidden sm:table-cell"),
                     ("Handler", "hidden xl:table-cell"),
                 ),
                 [
@@ -127,8 +127,12 @@ class ConfigPanel(Panel):
             Tiles, the settings table and the panel-availability rail.
         """
         config = context.config
-        live = context.registry.live()
-        missing = context.registry.missing()
+
+        # Panels, not watchers. Five watchers feed nine panels, and the first
+        # version of this tile reported the watcher count under a heading that
+        # said "Panels".
+        live = context.panels.live() if context.panels else []
+        missing = context.panels.missing() if context.panels else []
 
         return Rendered(
             id=self.id,
@@ -218,19 +222,24 @@ class ConfigPanel(Panel):
         Returns:
             The side rail.
         """
-        rows = []
-        for state in context.registry:
-            rows.append(
-                [
-                    state.name,
-                    state.availability.detail or state.watcher.requires,
-                    "healthy" if state.live else "stalled",
-                ]
-            )
+        if context.panels is None:  # pragma: no cover - always set by the registry
+            return {"label": "Panels", "note": "", "rows": []}
+
+        live = {panel.id for panel in context.panels.live()}
+        reasons = {entry["id"]: entry["reason"] for entry in context.panels.missing()}
+
+        rows = [
+            [
+                panel.id,
+                "" if panel.id in live else reasons.get(panel.id, ""),
+                "healthy" if panel.id in live else "stalled",
+            ]
+            for panel in context.panels
+        ]
 
         return {
             "label": "Panels",
-            "note": f"{len(context.registry.live())} live",
+            "note": f"{len(live)} of {len(context.panels)}",
             "rows": rows,
         }
 

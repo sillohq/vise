@@ -104,6 +104,9 @@ class PanelRegistry:
             config=config,
             app=app,
         )
+        # Set after construction rather than passed in, because the context is
+        # what a panel reads and this registry is what builds it.
+        self.context.panels = self
 
     def is_live(self, panel: Panel) -> bool:
         """Whether a panel should exist right now.

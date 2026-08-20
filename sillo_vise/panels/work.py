@@ -19,7 +19,7 @@ from typing import Any
 
 from ..logs.format import duration, elapsed, number, truncate
 from ..recorder import EventKind
-from .base import Panel, PanelContext, Rendered, columns, table
+from .base import Panel, PanelContext, Rendered, columns, state_column, table
 from .tiles import (
     TONE_BAD,
     TONE_GOOD,
@@ -120,7 +120,7 @@ class QueuesPanel(Panel):
                 columns(
                     "Task",
                     ("Queue", "hidden sm:table-cell"),
-                    "Status",
+                    state_column("Status"),
                     ("Duration", "hidden md:table-cell"),
                     ("Attempts", "hidden lg:table-cell"),
                 ),
@@ -258,7 +258,7 @@ class WorkersPanel(Panel):
                 columns(
                     "Worker",
                     ("Queues", "hidden sm:table-cell"),
-                    "Circuit",
+                    state_column("Circuit"),
                     ("Processed", "hidden md:table-cell"),
                     ("Uptime", "hidden lg:table-cell"),
                     ("Memory", "hidden xl:table-cell"),
@@ -345,7 +345,7 @@ class SchedulesPanel(Panel):
                     ("Expression", "hidden sm:table-cell"),
                     "Next fire",
                     ("Last run", "hidden md:table-cell"),
-                    ("Outcome", "hidden lg:table-cell"),
+                    state_column("Outcome", "hidden lg:table-cell"),
                 ),
                 [
                     [

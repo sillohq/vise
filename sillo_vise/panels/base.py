@@ -33,7 +33,7 @@ from ..watchers import WatcherRegistry
 __all__ = ["Panel", "PanelContext", "Rendered"]
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(slots=True)
 class PanelContext:
     """Everything a panel is allowed to read.
 
@@ -46,6 +46,11 @@ class PanelContext:
         registry: The watchers, so a panel can reach the one that feeds it.
         config: The resolved configuration.
         app: The application, for the panels that read it directly.
+        panels: The panel registry, set by it after construction. Only the
+            Config panel needs it, and it needs it for a reason worth stating:
+            *watchers* and *panels* are not the same count. Five watchers feed
+            nine panels, and a tile labelled "Panels" that reported the watcher
+            count was quietly wrong.
     """
 
     store: Store
@@ -53,6 +58,7 @@ class PanelContext:
     registry: WatcherRegistry
     config: ViseConfig
     app: Any = None
+    panels: Any = None
 
     def watcher(self, name: str) -> Any:
         """The watcher of a given name, when it is collecting.
@@ -177,26 +183,52 @@ class Panel:
         return f"{type(self).__name__}(id={self.id!r}, watcher={self.watcher!r})"
 
 
-def columns(*specs: tuple[str, str] | str) -> list[dict[str, str]]:
+def columns(*specs: tuple[str, str] | str | dict[str, str]) -> list[dict[str, str]]:
     """Build a table's column list.
 
     A column may carry a responsive class, which is how the mockups hide the
     less important columns on a narrow window rather than letting the table
-    scroll sideways.
+    scroll sideways. It may also be marked as a *state* column with
+    :func:`state_column`, which is what decides whether its cells get a coloured pill.
 
     Args:
-        *specs: A label, or a label and the class that hides it.
+        *specs: A label, a label and the class that hides it, or a column
+            already built by :func:`state_column`.
 
     Returns:
         The columns.
     """
-    built = []
+    built: list[dict[str, str]] = []
     for spec in specs:
-        if isinstance(spec, tuple):
+        if isinstance(spec, dict):
+            built.append(spec)
+        elif isinstance(spec, tuple):
             built.append({"label": spec[0], "cls": spec[1]})
         else:
             built.append({"label": spec})
     return built
+
+
+def state_column(label: str, cls: str = "") -> dict[str, str]:
+    """Mark a column as holding a state, so its cells are drawn as pills.
+
+    The alternative — letting the interface decide from the cell's text — is
+    what the first version did, and it coloured a recorder buffer of ``500`` as
+    an HTTP server error, because `500` looks like a status code when you have
+    no idea what column you are in. A state is a property of the column, and the
+    panel is the only thing that knows.
+
+    Args:
+        label: The column's heading.
+        cls: The responsive class that hides it, if any.
+
+    Returns:
+        The column.
+    """
+    column = {"label": label, "kind": "state"}
+    if cls:
+        column["cls"] = cls
+    return column
 
 
 def table(

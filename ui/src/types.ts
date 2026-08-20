@@ -28,6 +28,12 @@ export interface Column {
   label: string
   /** Breakpoint at which the column is hidden, as the mockups classify them. */
   cls?: string
+  /**
+   * `"state"` when the column holds a state and its cells should be drawn as
+   * coloured pills. Decided by the panel, because only the panel knows what a
+   * column means — a recorder buffer of `500` is not an HTTP server error.
+   */
+  kind?: string
 }
 
 export interface Table {

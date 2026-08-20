@@ -143,6 +143,22 @@ class TestRendering:
             rendered = registry.build(panel.id)
             assert len(rendered.tiles) in (0, 4)
 
+    def test_a_pill_is_only_drawn_in_a_state_column(self, registry):
+        """A recorder buffer of 500 is not an HTTP server error. Which cells are
+        states is the panel's decision, not the interface's."""
+        table = registry.build("config").table
+        assert all(column.get("kind") != "state" for column in table["columns"])
+
+    def test_a_status_column_is_marked_as_a_state(self, registry):
+        registry.context.recorder.request(method="GET", path="/x", status=200)
+        table = registry.build("requests").table
+        marked = {
+            column["label"]
+            for column in table["columns"]
+            if column.get("kind") == "state"
+        }
+        assert marked == {"Status"}
+
     def test_table_rows_are_all_strings(self, registry):
         rendered = registry.build("routes")
         assert all(
@@ -207,6 +223,18 @@ class TestContents:
     def test_the_config_panel_says_why_each_panel_is_missing(self, registry):
         rows = {row[0]: row[1] for row in registry.build("config").aside["rows"]}
         assert "database" in rows["queries"]
+
+    def test_the_config_panel_counts_panels_not_watchers(self, registry):
+        """Five watchers feed nine panels. A tile headed "Panels" that reported
+        the watcher count was quietly wrong."""
+        tiles = {
+            tile["label"]: tile["value"] for tile in registry.build("config").tiles
+        }
+        assert tiles["Panels"] == f"{len(registry.live())} live"
+
+    def test_the_config_rail_lists_every_declared_panel(self, registry):
+        rail = registry.build("config").aside
+        assert len(rail["rows"]) == len(registry)
 
     def test_the_routes_panel_lists_the_applications_routes(self, registry):
         paths = {row[1] for row in registry.build("routes").table["rows"]}

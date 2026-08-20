@@ -17,7 +17,7 @@ from typing import Any
 
 from ..logs.format import duration, number, size, truncate
 from ..recorder import EventKind, fingerprint_sql, short_sql
-from .base import Panel, PanelContext, Rendered, columns, table
+from .base import Panel, PanelContext, Rendered, columns, state_column, table
 from .tiles import (
     TONE_BAD,
     TONE_GOOD,
@@ -216,7 +216,7 @@ class RequestsPanel(Panel):
                 columns(
                     "Method",
                     "Path",
-                    "Status",
+                    state_column("Status"),
                     "Duration",
                     ("Bytes", "hidden md:table-cell"),
                     ("Client", "hidden lg:table-cell"),
@@ -422,8 +422,8 @@ class CachePanel(Panel):
             table=table(
                 columns(
                     "Key",
-                    ("Operation", "hidden sm:table-cell"),
-                    "Result",
+                    state_column("Operation", "hidden sm:table-cell"),
+                    state_column("Result"),
                     ("TTL", "hidden md:table-cell"),
                     ("Duration", "hidden lg:table-cell"),
                 ),
@@ -528,7 +528,7 @@ class OutgoingPanel(Panel):
                 columns(
                     "Method",
                     "URL",
-                    "Status",
+                    state_column("Status"),
                     ("Duration", "hidden md:table-cell"),
                     ("Retries", "hidden lg:table-cell"),
                 ),

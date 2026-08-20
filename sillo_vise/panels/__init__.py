@@ -8,7 +8,7 @@ Queues panel, rather than a Queues panel full of zeroes.
 
 from __future__ import annotations
 
-from .base import Panel, PanelContext, Rendered, columns, table
+from .base import Panel, PanelContext, Rendered, columns, state_column, table
 from .diagnose import ExceptionsPanel, LogsPanel, MailPanel, RealtimePanel
 from .monitor import (
     CachePanel,
@@ -56,6 +56,7 @@ __all__ = [
     "WorkersPanel",
     "all_panels",
     "columns",
+    "state_column",
     "table",
     "tile",
 ]

@@ -18,7 +18,7 @@ from typing import Any
 
 from ..logs.format import elapsed, number, size, truncate
 from ..recorder import EventKind
-from .base import Panel, PanelContext, Rendered, columns, table
+from .base import Panel, PanelContext, Rendered, columns, state_column, table
 from .tiles import (
     TONE_BAD,
     TONE_GOOD,
@@ -116,7 +116,7 @@ class ExceptionsPanel(Panel):
                     ("Raised in", "hidden md:table-cell"),
                     "Count",
                     ("Last seen", "hidden sm:table-cell"),
-                    ("State", "hidden lg:table-cell"),
+                    state_column("State", "hidden lg:table-cell"),
                 ),
                 [
                     [
@@ -222,7 +222,7 @@ class LogsPanel(Panel):
             },
             table=table(
                 columns(
-                    "Level",
+                    state_column("Level"),
                     "Message",
                     ("Logger", "hidden md:table-cell"),
                     ("Route", "hidden lg:table-cell"),
@@ -300,7 +300,7 @@ class RealtimePanel(Panel):
                     "Open",
                     ("Messages", "hidden md:table-cell"),
                     ("Bytes", "hidden sm:table-cell"),
-                    ("State", "hidden lg:table-cell"),
+                    state_column("State", "hidden lg:table-cell"),
                 ),
                 [
                     [
@@ -425,7 +425,7 @@ class MailPanel(Panel):
                     "To",
                     "Subject",
                     ("Template", "hidden md:table-cell"),
-                    "Status",
+                    state_column("Status"),
                     ("Mailer", "hidden lg:table-cell"),
                 ),
                 [

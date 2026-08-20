@@ -2,9 +2,13 @@
  * The main table, and the side rail beside it.
  *
  * Cells arrive as strings, already formatted by the panel that produced them —
- * `38ms`, `12.4 kB`, `4d 02h`. The interface decides one thing about a cell:
- * whether it is a state worth a coloured pill, which `pillFor` answers from the
- * framework's own vocabulary.
+ * `38ms`, `12.4 kB`, `4d 02h`. The interface decides nothing about them.
+ *
+ * Even the coloured pills are the panel's decision: a cell is drawn as a pill
+ * only when its *column* was marked as holding a state. Deciding from the cell's
+ * text instead is what the first version did, and it coloured a recorder buffer
+ * of `500` as an HTTP server error — because `500` looks like a status code when
+ * you have no idea which column you are in.
  */
 
 import type { Aside, Table as TableData } from '../types'
@@ -33,7 +37,9 @@ export function Table({ table, empty }: { table: TableData; empty: string }) {
               {table.rows.map((row, rowIndex) => (
                 <tr key={`${rowIndex}-${row[0] ?? ''}`}>
                   {row.map((cell, index) => {
-                    const pill = pillFor(cell)
+                    const pill =
+                      table.columns[index]?.kind === 'state' ? pillFor(cell) : ''
+
                     return (
                       <td key={index} className={classes[index]} title={cell}>
                         {pill ? <span className={pill}>{cell}</span> : cell}
