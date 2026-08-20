@@ -199,3 +199,32 @@ class TestLiveEdge:
         for _ in range(600):
             series.add(1.0, at=minutes_ago(30))
         assert series.rate(5) == 0.0
+
+
+class TestOffsetWindows:
+    """A tile compares the last N minutes against the N before them. A wider
+    window containing both is dominated by whichever half is worse."""
+
+    def test_an_offset_window_excludes_the_recent_minutes(self):
+        series = Series("x")
+        for _ in range(10):
+            series.add(400.0, at=minutes_ago(8))
+        for _ in range(10):
+            series.add(10.0)
+        assert series.percentile(0.95, 5, offset=5) == 400.0
+
+    def test_the_recent_window_sees_only_the_recent_minutes(self):
+        series = Series("x")
+        for _ in range(10):
+            series.add(400.0, at=minutes_ago(8))
+        for _ in range(10):
+            series.add(10.0)
+        assert series.percentile(0.95, 5) == 10.0
+
+    def test_a_wider_window_would_have_hidden_the_change(self):
+        series = Series("x")
+        for _ in range(10):
+            series.add(10.0, at=minutes_ago(8))
+        for _ in range(10):
+            series.add(400.0)
+        assert series.percentile(0.95, 10) == series.percentile(0.95, 5)

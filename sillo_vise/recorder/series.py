@@ -203,8 +203,8 @@ class Series:
         """
         self._bucket(at).add(value, error=error)
 
-    def buckets(self, minutes: int | None = None) -> list[Bucket]:
-        """The most recent minutes, oldest first, ending at the current one.
+    def buckets(self, minutes: int | None = None, offset: int = 0) -> list[Bucket]:
+        """A window of minutes, oldest first, ending *offset* minutes ago.
 
         Anchored to now rather than to the last observation. A series that
         stopped receiving traffic five minutes ago has to render as five empty
@@ -216,15 +216,22 @@ class Series:
         the length is always what was asked for. A chart with a fixed bar count
         should not narrow because the process started two minutes ago.
 
+        An *offset* shifts the window back in time, which is what lets a tile
+        compare the last five minutes against the five before them. Comparing
+        against a wider window containing both would be dominated by whichever
+        half is worse, so a latency that had just tripled would read as no
+        change at all.
+
         Args:
             minutes: How many minutes to return. None means the whole window.
+            offset: How many minutes back the window ends.
 
         Returns:
             The buckets, oldest first.
         """
         wanted = self.window if minutes is None else max(1, min(minutes, self.window))
         held = {bucket.minute: bucket for bucket in self._buckets}
-        latest = self._minute()
+        latest = self._minute() - 60 * max(0, offset)
 
         return [
             held.get(minute) or Bucket(minute)
@@ -329,7 +336,9 @@ class Series:
         count = sum(bucket.count for bucket in buckets)
         return sum(bucket.total for bucket in buckets) / count if count else 0.0
 
-    def percentile(self, fraction: float, minutes: int | None = None) -> float:
+    def percentile(
+        self, fraction: float, minutes: int | None = None, offset: int = 0
+    ) -> float:
         """Estimate a percentile across a window.
 
         The reservoirs of every bucket in the window are merged, so this is an
@@ -339,12 +348,13 @@ class Series:
         Args:
             fraction: Between 0 and 1. 0.95 is the p95.
             minutes: How far back. None means the whole window.
+            offset: How many minutes back the window ends.
 
         Returns:
             The estimate, or zero when nothing was observed.
         """
         merged: list[float] = []
-        for bucket in self.buckets(minutes):
+        for bucket in self.buckets(minutes, offset):
             merged.extend(bucket.samples)
 
         if not merged:
