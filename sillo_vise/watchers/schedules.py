@@ -20,7 +20,8 @@ should paper over, so the panel says which process it is looking at.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..recorder import Recorder
 from .base import Availability, Watcher, available, unavailable
@@ -161,7 +162,13 @@ class ScheduleWatcher(Watcher):
             stats = stats()
 
         if stats is None:
-            return {"jobs_total": 0, "jobs_active": 0, "jobs_paused": 0, "runs": 0, "errors": 0}
+            return {
+                "jobs_total": 0,
+                "jobs_active": 0,
+                "jobs_paused": 0,
+                "runs": 0,
+                "errors": 0,
+            }
 
         return stats.to_dict() if hasattr(stats, "to_dict") else dict(stats)
 

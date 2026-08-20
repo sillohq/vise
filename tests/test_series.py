@@ -84,7 +84,11 @@ class TestStatistics:
 
     def test_an_empty_series_reports_zero_rather_than_dividing(self):
         series = Series("x")
-        assert (series.mean(), series.percentile(0.95), series.rate()) == (0.0, 0.0, 0.0)
+        assert (series.mean(), series.percentile(0.95), series.rate()) == (
+            0.0,
+            0.0,
+            0.0,
+        )
 
 
 class TestPercentiles:

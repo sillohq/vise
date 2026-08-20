@@ -213,4 +213,3 @@ def _toml_value(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return "[" + ", ".join(_toml_value(item) for item in value) + "]"
     return json.dumps(str(value))
-

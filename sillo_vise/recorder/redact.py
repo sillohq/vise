@@ -29,7 +29,8 @@ Queries panel and are usually not secret — but a project that puts a token in 
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 __all__ = ["PLACEHOLDER", "Redactor"]
 
@@ -93,9 +94,7 @@ class Redactor:
         self.params = frozenset(name.lower() for name in params)
         self.bindings = bindings
 
-    def header_pairs(
-        self, pairs: Iterable[tuple[str, str]]
-    ) -> list[tuple[str, str]]:
+    def header_pairs(self, pairs: Iterable[tuple[str, str]]) -> list[tuple[str, str]]:
         """Redact a header list, keeping the order it was sent in.
 
         Order matters on the Requests panel — the headers a client sent, in the
@@ -275,4 +274,3 @@ class Redactor:
             f"Redactor(headers={len(self.headers)}, params={len(self.params)}, "
             f"bindings={self.bindings})"
         )
-

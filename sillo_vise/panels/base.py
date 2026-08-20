@@ -23,7 +23,8 @@ number means.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..config import ViseConfig
 from ..recorder import Recorder, Store
@@ -198,7 +199,9 @@ def columns(*specs: tuple[str, str] | str) -> list[dict[str, str]]:
     return built
 
 
-def table(columns_: Sequence[dict[str, str]], rows: Sequence[Sequence[Any]]) -> dict[str, Any]:
+def table(
+    columns_: Sequence[dict[str, str]], rows: Sequence[Sequence[Any]]
+) -> dict[str, Any]:
     """Build a table.
 
     Args:

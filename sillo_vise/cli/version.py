@@ -48,7 +48,10 @@ class Version(Command):
             [
                 ("vise", __version__),
                 ("sillo", getattr(sillo, "__version__", "unknown")),
-                ("python", f"{sys.version.split()[0]} ({platform.python_implementation()})"),
+                (
+                    "python",
+                    f"{sys.version.split()[0]} ({platform.python_implementation()})",
+                ),
                 ("platform", platform.platform(terse=True)),
             ]
         )

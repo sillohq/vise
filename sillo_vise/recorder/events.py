@@ -107,8 +107,7 @@ class Event:
             The event as plain data, with the kind as its string value.
         """
         data = {
-            field.name: getattr(self, field.name)
-            for field in dataclasses.fields(self)
+            field.name: getattr(self, field.name) for field in dataclasses.fields(self)
         }
         data["kind"] = self.kind.value
         return data

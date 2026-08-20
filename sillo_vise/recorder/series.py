@@ -21,7 +21,7 @@ from __future__ import annotations
 import bisect
 import time
 from collections import deque
-from typing import Iterable, Iterator
+from collections.abc import Iterable, Iterator
 
 __all__ = ["Bucket", "Series", "SeriesSet"]
 
@@ -193,7 +193,9 @@ class Series:
         self._buckets.append(bucket)
         return bucket
 
-    def add(self, value: float = 1.0, *, at: float | None = None, error: bool = False) -> None:
+    def add(
+        self, value: float = 1.0, *, at: float | None = None, error: bool = False
+    ) -> None:
         """Record one observation.
 
         Args:
@@ -361,9 +363,7 @@ class Series:
             return 0.0
 
         merged.sort()
-        index = min(
-            len(merged) - 1, max(0, int(round(fraction * (len(merged) - 1))))
-        )
+        index = min(len(merged) - 1, max(0, int(round(fraction * (len(merged) - 1)))))
         return merged[index]
 
     def spark(self, points: int = 10) -> list[float]:
@@ -385,8 +385,10 @@ class Series:
             float(sum(counts[index : index + width]))
             for index in range(0, len(counts), width)
         ]
-        return reduced[-points:] if len(reduced) >= points else (
-            [0.0] * (points - len(reduced)) + reduced
+        return (
+            reduced[-points:]
+            if len(reduced) >= points
+            else ([0.0] * (points - len(reduced)) + reduced)
         )
 
     def trend(self, minutes: int = 5) -> float:

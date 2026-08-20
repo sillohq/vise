@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import inspect
 import traceback
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..recorder import Recorder
 from .base import Availability, Watcher, available
@@ -96,7 +97,9 @@ class ExceptionWatcher(Watcher):
 
         if inspect.iscoroutinefunction(handler):
 
-            async def wrapped_async(request: Any, error: Any, *args: Any, **kwargs: Any) -> Any:
+            async def wrapped_async(
+                request: Any, error: Any, *args: Any, **kwargs: Any
+            ) -> Any:
                 """Record the exception, then run the real handler."""
                 recording(error, handled=True)
                 return await handler(request, error, *args, **kwargs)

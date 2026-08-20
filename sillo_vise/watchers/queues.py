@@ -365,7 +365,9 @@ def _queue(task: Any) -> str:
     Returns:
         The queue's name.
     """
-    return str(getattr(task, "queue_name", "") or getattr(task, "queue", "") or "default")
+    return str(
+        getattr(task, "queue_name", "") or getattr(task, "queue", "") or "default"
+    )
 
 
 def _id(task: Any) -> str:

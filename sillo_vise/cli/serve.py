@@ -56,11 +56,21 @@ class Serve(Command):
         # bad trade for one saved character.
         Option("host", help="Address to bind"),
         Option("port", short="p", type=int, help="Port to bind"),
-        Option("reload", choices=["on", "off"], help="Restart when watched files change"),
+        Option(
+            "reload", choices=["on", "off"], help="Restart when watched files change"
+        ),
         Option("dashboard", choices=["on", "off"], help="Mount the Foreman dashboard"),
-        Option("record", choices=["on", "off"], help="Collect what the application does"),
-        Option("access", choices=["local", "token", "open"], help="Who may reach the dashboard"),
-        Option("level", choices=["debug", "info", "warning", "error"], help="Log level"),
+        Option(
+            "record", choices=["on", "off"], help="Collect what the application does"
+        ),
+        Option(
+            "access",
+            choices=["local", "token", "open"],
+            help="Who may reach the dashboard",
+        ),
+        Option(
+            "level", choices=["debug", "info", "warning", "error"], help="Log level"
+        ),
         Option("style", choices=["vise", "plain", "json"], help="Log style"),
         Flag("quiet", short="q", help="No banner and no access log"),
     ]

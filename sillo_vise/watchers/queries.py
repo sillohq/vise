@@ -27,7 +27,8 @@ time, and undone on detach. Two consequences worth stating plainly:
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..recorder import Recorder
 from .base import Availability, Watcher, available, unavailable

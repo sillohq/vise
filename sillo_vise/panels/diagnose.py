@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from ..logs.format import duration, elapsed, number, size, truncate
+from ..logs.format import elapsed, number, size, truncate
 from ..recorder import EventKind
 from .base import Panel, PanelContext, Rendered, columns, table
 from .tiles import (

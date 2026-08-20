@@ -75,7 +75,9 @@ class TestLiveOnly:
         assert registry.build("queues") is None
 
     def test_a_panel_that_does_not_exist_is_not_in_the_sidebar(self, registry):
-        shown = {panel["id"] for group in registry.sidebar() for panel in group["panels"]}
+        shown = {
+            panel["id"] for group in registry.sidebar() for panel in group["panels"]
+        }
         assert "mail" not in shown
 
     def test_an_empty_group_is_dropped(self, registry):
@@ -143,7 +145,9 @@ class TestRendering:
 
     def test_table_rows_are_all_strings(self, registry):
         rendered = registry.build("routes")
-        assert all(isinstance(cell, str) for row in rendered.table["rows"] for cell in row)
+        assert all(
+            isinstance(cell, str) for row in rendered.table["rows"] for cell in row
+        )
 
     def test_a_row_has_a_cell_per_column(self, registry):
         rendered = registry.build("routes")
@@ -258,11 +262,17 @@ class TestTones:
         for _ in range(20):
             series.add(1.0)
 
-        assert trend_tile("Queue size", "20", series, higher_is_better=False)["tone"] == TONE_WARN
+        assert (
+            trend_tile("Queue size", "20", series, higher_is_better=False)["tone"]
+            == TONE_WARN
+        )
 
     def test_a_rising_throughput_is(self):
         series = Series("x")
         for _ in range(20):
             series.add(1.0)
 
-        assert trend_tile("Requests", "20", series, higher_is_better=True)["tone"] == TONE_GOOD
+        assert (
+            trend_tile("Requests", "20", series, higher_is_better=True)["tone"]
+            == TONE_GOOD
+        )

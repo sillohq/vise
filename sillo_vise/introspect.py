@@ -20,7 +20,8 @@ unbounded memory growth would be a poor sort of operations tool.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 __all__ = ["RouteInfo", "RouteResolver", "walk_routes"]
 
@@ -61,7 +62,9 @@ class RouteInfo:
         Returns:
             The method to show.
         """
-        methods = [name for name in self.methods if name != "HEAD"] or list(self.methods)
+        methods = [name for name in self.methods if name != "HEAD"] or list(
+            self.methods
+        )
         return methods[0] if len(methods) == 1 else ",".join(methods)
 
 
@@ -144,7 +147,8 @@ def _walk(routes: Any, prefix: str) -> Iterator[RouteInfo]:
             methods=label,
             path=path or "/",
             name=getattr(route, "name", "") or getattr(handler, "__name__", ""),
-            handler=getattr(handler, "__qualname__", "") or getattr(handler, "__name__", ""),
+            handler=getattr(handler, "__qualname__", "")
+            or getattr(handler, "__name__", ""),
             auth="required" if getattr(route, "auth", None) else "open",
             middleware=len(getattr(route, "middleware", ()) or ()),
         )
@@ -184,7 +188,9 @@ class RouteResolver:
             The routes.
         """
         if self._routes is None:
-            routes = getattr(getattr(self.app, "router", self.app), "routes", None) or []
+            routes = (
+                getattr(getattr(self.app, "router", self.app), "routes", None) or []
+            )
             self._routes = list(_leaves(routes))
         return self._routes
 

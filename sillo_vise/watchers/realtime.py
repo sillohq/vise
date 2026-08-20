@@ -21,7 +21,8 @@ built is a panel that will always read zero.
 from __future__ import annotations
 
 import time
-from typing import Any, Awaitable, Callable, MutableMapping
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
 
 from ..introspect import walk_routes
 from ..recorder import Recorder
@@ -86,7 +87,9 @@ class WebsocketRecorder:
                 self.recorder.websocket(channel, action="connect")
             elif message["type"] == "websocket.send":
                 sent += _payload_size(message)
-                self.recorder.websocket(channel, action="send", bytes=_payload_size(message))
+                self.recorder.websocket(
+                    channel, action="send", bytes=_payload_size(message)
+                )
             elif message["type"] == "websocket.close":
                 self.recorder.websocket(
                     channel,
@@ -165,7 +168,9 @@ class RealtimeWatcher(Watcher):
 
         parts = []
         if sockets:
-            parts.append(f"{len(sockets)} socket route{'s' if len(sockets) != 1 else ''}")
+            parts.append(
+                f"{len(sockets)} socket route{'s' if len(sockets) != 1 else ''}"
+            )
         if events:
             parts.append(f"{len(events)} event{'s' if len(events) != 1 else ''}")
 
@@ -192,7 +197,7 @@ class RealtimeWatcher(Watcher):
             return
 
         self.original = original
-        setattr(emitter_class, "_dispatch", self._wrap(original))
+        emitter_class._dispatch = self._wrap(original)
 
     def _wrap(self, original: Callable) -> Callable:
         """Build the replacement for the emitter's dispatch.
@@ -236,7 +241,7 @@ class RealtimeWatcher(Watcher):
         watcher's business.
         """
         if self.emitter is not None and self.original is not None:
-            setattr(type(self.emitter), "_dispatch", self.original)
+            type(self.emitter)._dispatch = self.original
         self.emitter = None
         self.original = None
         super().detach()
@@ -320,4 +325,8 @@ def _transport(emitter: Any) -> str:
         A short lowercase name.
     """
     transport = getattr(emitter, "transport", None)
-    return type(transport).__name__.removesuffix("Transport").lower() if transport else "memory"
+    return (
+        type(transport).__name__.removesuffix("Transport").lower()
+        if transport
+        else "memory"
+    )

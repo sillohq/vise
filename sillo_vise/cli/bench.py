@@ -94,7 +94,9 @@ class Bench(Command):
         self._report(rows, count, path)
         return 0
 
-    def _report(self, rows: list[tuple[str, list[float]]], count: int, path: str) -> None:
+    def _report(
+        self, rows: list[tuple[str, list[float]]], count: int, path: str
+    ) -> None:
         """Print the table.
 
         Args:
@@ -276,7 +278,9 @@ class Lifespan:
             await self._from_app[0].send(message)
 
         try:
-            await self.app({"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send)
+            await self.app(
+                {"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send
+            )
         except Exception:  # noqa: BLE001 - an application without lifespan is fine
             # Unblock anyone waiting on a reply that is never coming.
             with anyio.move_on_after(1):

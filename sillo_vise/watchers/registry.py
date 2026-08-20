@@ -21,7 +21,8 @@ from __future__ import annotations
 import dataclasses
 import logging
 import time
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from ..config import PanelConfig
 from ..recorder import Recorder
@@ -206,7 +207,9 @@ class WatcherRegistry:
         try:
             state.watcher.attach(self.app, self.recorder)
         except Exception as error:  # noqa: BLE001 - one collector, not the tool
-            logger.warning("vise: the %s watcher could not attach: %s", state.name, error)
+            logger.warning(
+                "vise: the %s watcher could not attach: %s", state.name, error
+            )
             state.availability = unavailable(f"could not attach: {error}")
             return
 
@@ -221,7 +224,9 @@ class WatcherRegistry:
         try:
             state.watcher.detach()
         except Exception as error:  # noqa: BLE001 - detaching is best-effort
-            logger.warning("vise: the %s watcher could not detach: %s", state.name, error)
+            logger.warning(
+                "vise: the %s watcher could not detach: %s", state.name, error
+            )
 
         state.attached = False
 

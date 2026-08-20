@@ -138,7 +138,9 @@ class TestRendering:
 
     def test_a_found_application_is_written_live(self):
         assert 'target = "app.main:app"' in render_template("app.main:app")
-        assert parse_config(render_template("app.main:app")).app.target == "app.main:app"
+        assert (
+            parse_config(render_template("app.main:app")).app.target == "app.main:app"
+        )
 
     def test_everything_else_stays_commented(self):
         assert parse_config(render_template()) == ViseConfig()

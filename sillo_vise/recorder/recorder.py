@@ -16,7 +16,8 @@ from the interface, which is a different thing from one that was never started.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..config import RecorderConfig
 from .context import current_job, current_request, current_route
@@ -56,7 +57,9 @@ class Recorder:
 
     __slots__ = ("config", "store", "redactor", "enabled", "started_at", "_hooks")
 
-    def __init__(self, config: RecorderConfig | None = None, store: Store | None = None) -> None:
+    def __init__(
+        self, config: RecorderConfig | None = None, store: Store | None = None
+    ) -> None:
         """Build a recorder.
 
         Args:
@@ -156,7 +159,9 @@ class Recorder:
             series.add(f"cache.{event.result}", 1.0)
         elif isinstance(event, OutgoingEvent):
             series.add(
-                "outgoing", event.duration_ms, error=bool(event.error) or event.status >= 400
+                "outgoing",
+                event.duration_ms,
+                error=bool(event.error) or event.status >= 400,
             )
         elif isinstance(event, JobEvent):
             series.add("jobs", event.duration_ms, error=event.status == "failed")
@@ -395,5 +400,6 @@ class Recorder:
             Whether it is running, and how much it holds.
         """
         state = "enabled" if self.enabled else "paused"
-        return f"Recorder({state}, {sum(self.totals().values())} events, {self.store!r})"
-
+        return (
+            f"Recorder({state}, {sum(self.totals().values())} events, {self.store!r})"
+        )

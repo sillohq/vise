@@ -22,7 +22,8 @@ because it never sees the assembled body, and a middleware that read
 from __future__ import annotations
 
 import time
-from typing import Any, Awaitable, Callable, MutableMapping
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
 
 from ..introspect import RouteResolver
 from ..recorder import Recorder, new_id, request_scope, set_route
@@ -131,7 +132,9 @@ class RequestRecorder:
                 self.recorder.exception(error, request_id=request_id)
                 raise
             else:
-                self._record(scope, request_id, status, started, response_headers, written)
+                self._record(
+                    scope, request_id, status, started, response_headers, written
+                )
 
     def _record(
         self,

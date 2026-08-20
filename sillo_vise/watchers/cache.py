@@ -27,7 +27,8 @@ exists for, and it should come from the thing that already knows it.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..recorder import Recorder
 from .base import Availability, Watcher, available, unavailable

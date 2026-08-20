@@ -71,7 +71,7 @@ class RecordingHandler(logging.Handler):
         if record.name.startswith(_IGNORED):
             return
 
-        try:
+        try:  # noqa: SIM105
             self.recorder.log(
                 record.levelname,
                 record.getMessage(),
@@ -82,6 +82,10 @@ class RecordingHandler(logging.Handler):
             # A handler that raises while handling a log record produces a log
             # record. Swallowing is not laziness here; it is the only way out
             # of the loop.
+            #
+            # Not `contextlib.suppress`: this runs on every log line the
+            # application writes, and a context manager built and entered per
+            # record is real cost on a path whose whole job is to be cheap.
             pass
 
     def handleError(self, record: logging.LogRecord) -> None:

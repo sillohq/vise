@@ -10,7 +10,6 @@ worse than one that does nothing.
 from __future__ import annotations
 
 import io
-import os
 from pathlib import Path
 
 import pytest
@@ -232,8 +231,9 @@ class TestServeOverrides:
     """A flag left untyped must never override the .vise file."""
 
     def build(self, argv: list[str]):
-        from sillo_vise.cli.serve import Serve
         from sillo.console.arguments import parse
+
+        from sillo_vise.cli.serve import Serve
 
         parsed = parse(Serve.arguments, argv, command="serve")
         command = Serve(parsed, None, None)  # type: ignore[arg-type]

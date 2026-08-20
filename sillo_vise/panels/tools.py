@@ -62,7 +62,9 @@ class RoutesPanel(Panel):
         return Rendered(
             id=self.id,
             tiles=[
-                tile("Routes", number(len(routes)), delta="registered", tone=TONE_MUTED),
+                tile(
+                    "Routes", number(len(routes)), delta="registered", tone=TONE_MUTED
+                ),
                 tile(
                     "Named",
                     number(named),
@@ -226,7 +228,11 @@ class ConfigPanel(Panel):
                 ]
             )
 
-        return {"label": "Panels", "note": f"{len(context.registry.live())} live", "rows": rows}
+        return {
+            "label": "Panels",
+            "note": f"{len(context.registry.live())} live",
+            "rows": rows,
+        }
 
 
 def _render(value: Any) -> str:

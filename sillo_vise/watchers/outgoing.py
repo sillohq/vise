@@ -25,7 +25,8 @@ here as a separate call.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlsplit
 
 from ..recorder import Recorder
@@ -68,7 +69,9 @@ class OutgoingWatcher(Watcher):
         """
         client = _client_class()
         if client is None:
-            return unavailable("sillo.http.client is unavailable — httpx is not installed")
+            return unavailable(
+                "sillo.http.client is unavailable — httpx is not installed"
+            )
 
         if not callable(getattr(client, _SEND, None)):
             return unavailable(
@@ -108,7 +111,9 @@ class OutgoingWatcher(Watcher):
             A coroutine function that times the call and records it.
         """
 
-        async def wrapped(client: Any, method: str, url: Any, *args: Any, **kwargs: Any) -> Any:
+        async def wrapped(
+            client: Any, method: str, url: Any, *args: Any, **kwargs: Any
+        ) -> Any:
             """Send the request, then record what it cost."""
             started = time.perf_counter()
             before = _retries(client)

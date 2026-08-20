@@ -23,7 +23,6 @@ from sillo_vise.config import (
     ViseConfig,
 )
 from sillo_vise.dashboard import AccessGate
-from sillo_vise.recorder import EventKind
 from sillo_vise.server.install import install
 
 PREFIX = "/__sillo/foreman"
@@ -158,7 +157,9 @@ class TestRequestCorrelation:
         try:
             with TestClient(app) as test_client:
                 test_client.get("/busy")
-                events = test_client.get(f"{PREFIX}/api/events/request").json()["events"]
+                events = test_client.get(f"{PREFIX}/api/events/request").json()[
+                    "events"
+                ]
                 caused = test_client.get(
                     f"{PREFIX}/api/requests/{events[0]['id']}"
                 ).json()["caused"]
@@ -244,11 +245,16 @@ class TestAccess:
 
     def test_a_forwarded_header_does_not_satisfy_local_mode(self):
         gate = AccessGate("local")
-        scope = {"headers": [(b"x-forwarded-for", b"127.0.0.1")], "client": ("8.8.8.8", 1)}
+        scope = {
+            "headers": [(b"x-forwarded-for", b"127.0.0.1")],
+            "client": ("8.8.8.8", 1),
+        }
         assert not gate.allows(scope)
 
     def test_a_real_loopback_peer_does(self):
-        assert AccessGate("local").allows({"client": ("127.0.0.1", 5000), "headers": []})
+        assert AccessGate("local").allows(
+            {"client": ("127.0.0.1", 5000), "headers": []}
+        )
 
 
 class TestSecurityHeaders:
@@ -315,7 +321,9 @@ class TestEvents:
     def test_the_limit_is_clamped(self, client):
         for _ in range(5):
             client.get("/")
-        assert len(get(client, "/api/events/request?limit=99999").json()["events"]) <= 200
+        assert (
+            len(get(client, "/api/events/request?limit=99999").json()["events"]) <= 200
+        )
 
 
 class TestRecorderOff:

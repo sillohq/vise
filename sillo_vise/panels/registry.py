@@ -17,7 +17,8 @@ queue and no mail sees a shorter sidebar rather than three empty headings.
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from ..config import ViseConfig
 from ..recorder import Recorder
@@ -228,7 +229,12 @@ class PanelRegistry:
                 reason = state.availability.detail if state else "no watcher"
 
             entries.append(
-                {"id": panel.id, "name": panel.name, "group": panel.group, "reason": reason}
+                {
+                    "id": panel.id,
+                    "name": panel.name,
+                    "group": panel.group,
+                    "reason": reason,
+                }
             )
 
         return entries

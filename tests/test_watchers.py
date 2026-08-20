@@ -15,7 +15,6 @@ import logging
 import pytest
 from sillo import SilloApp
 from sillo.mail.client import setup_mail
-from sillo.testclient import TestClient
 
 from sillo_vise.config import PanelConfig
 from sillo_vise.recorder import EventKind, Recorder
@@ -119,10 +118,9 @@ class TestCache:
             config.reset_cache_config()
 
     def test_operations_are_recorded(self, bare):
+        import anyio
         from sillo.cache import config
         from sillo.cache.backends import MemoryCache
-
-        import anyio
 
         config.configure_cache(MemoryCache())
         recorder = Recorder()
@@ -277,7 +275,9 @@ class TestRegistry:
             def attach(self, app, recorder):
                 raise RuntimeError("no")
 
-        registry = WatcherRegistry(bare, Recorder(), watchers=[Unattachable(), LogWatcher()])
+        registry = WatcherRegistry(
+            bare, Recorder(), watchers=[Unattachable(), LogWatcher()]
+        )
         registry.probe()
         try:
             assert registry.live() == ["logs"]

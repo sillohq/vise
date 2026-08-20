@@ -37,7 +37,15 @@ __all__ = ["QueuesPanel", "SchedulesPanel", "WorkersPanel"]
 CHART_BARS = 40
 
 #: Statuses the queue table can show, in the order a job passes through them.
-STATUSES = ("pending", "scheduled", "running", "retrying", "completed", "failed", "cancelled")
+STATUSES = (
+    "pending",
+    "scheduled",
+    "running",
+    "retrying",
+    "completed",
+    "failed",
+    "cancelled",
+)
 
 
 class QueuesPanel(Panel):
@@ -183,8 +191,11 @@ class QueuesPanel(Panel):
                 [
                     name,
                     f"{pending} enqueued",
-                    "stalled" if failed and not counts.get("completed") else
-                    "degraded" if failed else "healthy",
+                    "stalled"
+                    if failed and not counts.get("completed")
+                    else "degraded"
+                    if failed
+                    else "healthy",
                 ]
             )
 
@@ -313,7 +324,9 @@ class SchedulesPanel(Panel):
                 ),
                 tile(
                     "Runs",
-                    number(stats.get("runs", int(context.store.count(EventKind.SCHEDULE)))),
+                    number(
+                        stats.get("runs", int(context.store.count(EventKind.SCHEDULE)))
+                    ),
                     delta="since start",
                     tone=TONE_GOOD,
                     spark=spark_of(context.store.series["schedules"]),
@@ -347,9 +360,7 @@ class SchedulesPanel(Panel):
                     for job in jobs
                 ],
             ),
-            note=""
-            if jobs
-            else "A scheduler is running and has no jobs registered.",
+            note="" if jobs else "A scheduler is running and has no jobs registered.",
         )
 
     @staticmethod

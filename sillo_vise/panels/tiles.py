@@ -20,7 +20,8 @@ the brand red for bad, and muted for a number that is neither.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..logs.format import duration, number, size
 from ..recorder import Series
@@ -256,4 +257,10 @@ def bytes_tile(label: str, series: Series) -> dict[str, Any]:
     Returns:
         The tile.
     """
-    return tile(label, size(int(series.sum())), delta="1h", tone=TONE_MUTED, spark=spark_of(series))
+    return tile(
+        label,
+        size(int(series.sum())),
+        delta="1h",
+        tone=TONE_MUTED,
+        spark=spark_of(series),
+    )

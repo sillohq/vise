@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Awaitable, Callable, MutableMapping
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
 
 from ..config import ViseConfig
 from ..panels import PanelRegistry
@@ -35,7 +36,7 @@ from ..watchers import WatcherRegistry
 from .api import DashboardAPI
 from .assets import Assets
 from .security import AccessGate
-from .stream import EventStream, sse
+from .stream import EventStream
 
 __all__ = ["Dashboard"]
 
@@ -114,7 +115,9 @@ class Dashboard:
             return
 
         if not self.gate.allows(scope):
-            await _json(send, 403, {"error": "The vise dashboard refused this request."})
+            await _json(
+                send, 403, {"error": "The vise dashboard refused this request."}
+            )
             return
 
         # Re-probe on the way past. This is what lets the Queues panel appear
@@ -135,7 +138,9 @@ class Dashboard:
             logger.exception("vise: the dashboard failed serving %s", rest)
             await _json(send, 500, {"error": f"{type(error).__name__}: {error}"})
 
-    async def _route(self, path: str, scope: Scope, receive: Receive, send: Send) -> None:
+    async def _route(
+        self, path: str, scope: Scope, receive: Receive, send: Send
+    ) -> None:
         """Dispatch one dashboard request.
 
         Written as a chain of comparisons rather than a route table, because
@@ -170,7 +175,9 @@ class Dashboard:
 
         if path.startswith("/api/panels/"):
             panel = self.api.panel(path[len("/api/panels/") :])
-            await _json(send, 200 if panel else 404, panel or {"error": "No such panel."})
+            await _json(
+                send, 200 if panel else 404, panel or {"error": "No such panel."}
+            )
             return
 
         if path.startswith("/api/requests/"):
@@ -184,12 +191,16 @@ class Dashboard:
 
         if path.startswith("/api/events/"):
             events = self.api.events(path[len("/api/events/") :], _limit(scope))
-            await _json(send, 200 if events else 404, events or {"error": "No such kind."})
+            await _json(
+                send, 200 if events else 404, events or {"error": "No such kind."}
+            )
             return
 
         if path.startswith("/api/actions/") and method == "POST":
             result = self.api.action(path[len("/api/actions/") :])
-            await _json(send, 200 if result else 404, result or {"error": "No such action."})
+            await _json(
+                send, 200 if result else 404, result or {"error": "No such action."}
+            )
             return
 
         if path == "/api/stream":
@@ -238,7 +249,9 @@ class Dashboard:
 
         try:
             async for frame in self.stream.frames(panel):
-                await send({"type": "http.response.body", "body": frame, "more_body": True})
+                await send(
+                    {"type": "http.response.body", "body": frame, "more_body": True}
+                )
         except Exception:  # noqa: BLE001 - the browser went away mid-frame
             pass
 

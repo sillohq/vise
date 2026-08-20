@@ -51,7 +51,11 @@ class TestHeaders:
         event = recorder.request(
             headers=[("accept", "a"), ("accept", "b"), ("authorization", SECRET)]
         )
-        assert [name for name, _ in event.headers] == ["accept", "accept", "authorization"]
+        assert [name for name, _ in event.headers] == [
+            "accept",
+            "accept",
+            "authorization",
+        ]
 
     def test_ordinary_headers_are_untouched(self, recorder):
         event = recorder.request(headers=[("accept", "application/json")])
@@ -154,7 +158,9 @@ class TestRedactorItself:
         }
 
     def test_nothing_configured_redacts_nothing(self):
-        assert Redactor().headers_of({"authorization": SECRET})["authorization"] == SECRET
+        assert (
+            Redactor().headers_of({"authorization": SECRET})["authorization"] == SECRET
+        )
 
 
 class TestPausing:
@@ -175,10 +181,15 @@ class TestTheNetUnderTheNet:
     not mangle ordinary prose on its way past."""
 
     def test_an_auth_scheme_is_caught(self):
-        assert Redactor().text("calling with Bearer abc123") == f"calling with Bearer {PLACEHOLDER}"
+        assert (
+            Redactor().text("calling with Bearer abc123")
+            == f"calling with Bearer {PLACEHOLDER}"
+        )
 
     def test_a_named_credential_is_caught(self):
-        assert Redactor().text("user password: hunter2") == f"user password={PLACEHOLDER}"
+        assert (
+            Redactor().text("user password: hunter2") == f"user password={PLACEHOLDER}"
+        )
 
     def test_prose_mentioning_a_keyword_is_left_alone(self):
         assert Redactor().text("password reset requested") == "password reset requested"

@@ -96,7 +96,11 @@ class AccessLog:
         Args:
             event: The recorded request.
         """
-        if not self.static and self.dashboard_path and event.path.startswith(self.dashboard_path):
+        if (
+            not self.static
+            and self.dashboard_path
+            and event.path.startswith(self.dashboard_path)
+        ):
             return
 
         self.stream.write(f"{self.render(event)}\n")

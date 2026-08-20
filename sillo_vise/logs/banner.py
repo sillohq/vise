@@ -23,7 +23,8 @@ recorded" is visible rather than mysterious.
 from __future__ import annotations
 
 import sys
-from typing import IO, Sequence
+from collections.abc import Sequence
+from typing import IO
 
 from sillo.console.style import Palette
 
@@ -45,7 +46,9 @@ class Banner:
 
     __slots__ = ("stream", "palette")
 
-    def __init__(self, stream: IO[str] | None = None, palette: Palette | None = None) -> None:
+    def __init__(
+        self, stream: IO[str] | None = None, palette: Palette | None = None
+    ) -> None:
         """Build a banner.
 
         Args:
@@ -117,5 +120,7 @@ class Banner:
         """
         paint = self.palette.render
         tail = f" — {reason}" if reason else ""
-        self.stream.write(f"\n  {paint('▲', ACCENT)} {paint('vise stopped' + tail, DIM)}\n")
+        self.stream.write(
+            f"\n  {paint('▲', ACCENT)} {paint('vise stopped' + tail, DIM)}\n"
+        )
         self.stream.flush()

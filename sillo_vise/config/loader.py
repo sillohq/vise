@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import dataclasses
 import os
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping, TypeVar
+from typing import Any, TypeVar
 
 from .schema import (
     AppConfig,
@@ -185,7 +186,9 @@ def parse_config(text: str, source: str | None = None) -> ViseConfig:
         parsed = loads(text)
     except TOMLDecodeError as error:
         where = f" in {source}" if source else ""
-        raise ConfigError(f"{CONFIG_FILENAME} is not valid TOML{where}: {error}")
+        raise ConfigError(
+            f"{CONFIG_FILENAME} is not valid TOML{where}: {error}"
+        ) from error
 
     unknown = set(parsed) - {name for name, _, _ in _SECTIONS}
     if unknown:
@@ -266,8 +269,8 @@ def _parse_environment_value(raw: str, annotation: str) -> Any:
     if "int" in annotation and "str" not in annotation:
         try:
             return int(raw)
-        except ValueError:
-            raise ConfigError(f"{raw!r} is not a whole number")
+        except ValueError as error:
+            raise ConfigError(f"{raw!r} is not a whole number") from error
 
     return raw
 
@@ -287,7 +290,9 @@ def _apply(config: ViseConfig, overlay: Mapping[str, Mapping[str, Any]]) -> Vise
     for name, attribute, _ in _SECTIONS:
         table = overlay.get(name)
         if table:
-            changes[attribute] = dataclasses.replace(getattr(config, attribute), **table)
+            changes[attribute] = dataclasses.replace(
+                getattr(config, attribute), **table
+            )
 
     return dataclasses.replace(config, **changes) if changes else config
 
@@ -322,10 +327,12 @@ def load_config(
         try:
             text = path.read_text(encoding="utf-8")
         except OSError as error:
-            raise ConfigError(f"{path} could not be read: {error}")
+            raise ConfigError(f"{path} could not be read: {error}") from error
         config = parse_config(text, source=str(path))
 
-    config = _apply(config, _environment_overlay(os.environ if environ is None else environ))
+    config = _apply(
+        config, _environment_overlay(os.environ if environ is None else environ)
+    )
 
     if overrides:
         config = _apply(config, overrides)

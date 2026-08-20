@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import threading
 from collections import Counter, deque
-from typing import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 
 from .events import Event, EventKind, RequestEvent
 from .series import SeriesSet
@@ -48,7 +48,9 @@ class StoreSubscription:
 
     __slots__ = ("kinds", "dropped", "_queue", "_wake")
 
-    def __init__(self, kinds: Iterable[EventKind] | None = None, maxlen: int = 512) -> None:
+    def __init__(
+        self, kinds: Iterable[EventKind] | None = None, maxlen: int = 512
+    ) -> None:
         """Open a subscription.
 
         Args:
@@ -106,7 +108,15 @@ class Store:
         series: The per-minute series behind charts and sparklines.
     """
 
-    __slots__ = ("buffer", "series", "_rings", "_by_request", "_counters", "_lock", "_subscribers")
+    __slots__ = (
+        "buffer",
+        "series",
+        "_rings",
+        "_by_request",
+        "_counters",
+        "_lock",
+        "_subscribers",
+    )
 
     def __init__(self, buffer: int = 2000, window_minutes: int = 60) -> None:
         """Open a store.

@@ -80,7 +80,10 @@ class ViseFormatter(logging.Formatter):
 
         line = "  ".join(
             [
-                "  " + paint(time.strftime("%H:%M:%S", time.localtime(record.created)), TIMESTAMP),
+                "  "
+                + paint(
+                    time.strftime("%H:%M:%S", time.localtime(record.created)), TIMESTAMP
+                ),
                 paint(level.ljust(_LEVEL_WIDTH), level_style(level)),
                 paint(truncate(record.name, _LOGGER_WIDTH).ljust(_LOGGER_WIDTH), DIM),
                 message,
@@ -112,9 +115,11 @@ class JSONFormatter(logging.Formatter):
 
     #: Attributes ``logging`` puts on every record, which are therefore not
     #: the caller's structured extras.
-    _BUILTIN = frozenset(
-        logging.LogRecord("", 0, "", 0, "", None, None).__dict__
-    ) | {"message", "asctime", "taskName"}
+    _BUILTIN = frozenset(logging.LogRecord("", 0, "", 0, "", None, None).__dict__) | {
+        "message",
+        "asctime",
+        "taskName",
+    }
 
     def format(self, record: logging.LogRecord) -> str:
         """Render one record.

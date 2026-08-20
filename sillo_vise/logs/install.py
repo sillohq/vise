@@ -82,7 +82,9 @@ def silence_uvicorn() -> None:
         # Not disabled outright: a failure to bind the port is reported through
         # uvicorn.error, and swallowing that would turn a clear message into a
         # process that exits with no explanation.
-        logger.setLevel(logging.WARNING if name == "uvicorn.error" else logging.CRITICAL)
+        logger.setLevel(
+            logging.WARNING if name == "uvicorn.error" else logging.CRITICAL
+        )
 
 
 def consolidate_framework_logging() -> None:
@@ -128,7 +130,9 @@ def _framework_logger_names() -> list[str]:
     found = set(_FRAMEWORK_LOGGERS)
 
     for name in list(logging.root.manager.loggerDict):
-        if any(name == root or name.startswith(f"{root}.") for root in _FRAMEWORK_LOGGERS):
+        if any(
+            name == root or name.startswith(f"{root}.") for root in _FRAMEWORK_LOGGERS
+        ):
             found.add(name)
 
     return sorted(found)
@@ -149,7 +153,12 @@ def _disarm_create_logger() -> None:
     if getattr(framework_logging.create_logger, "__vise_disarmed__", False):
         return
 
-    def create_logger(logger_name: str = "sillo", log_level: int = logging.DEBUG, *_: object, **__: object) -> logging.Logger:
+    def create_logger(
+        logger_name: str = "sillo",
+        log_level: int = logging.DEBUG,
+        *_: object,
+        **__: object,
+    ) -> logging.Logger:
         """Return a logger that reports through the root handler."""
         logger = logging.getLogger(logger_name)
         logger.setLevel(log_level)

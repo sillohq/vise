@@ -23,14 +23,12 @@ from .tiles import (
     TONE_GOOD,
     TONE_INFO,
     TONE_MUTED,
-    TONE_WARN,
     bytes_tile,
     duration_tile,
     rate_tile,
     spark_of,
     threshold_tone,
     tile,
-    trend_tile,
 )
 
 __all__ = [
@@ -102,9 +100,7 @@ class OverviewPanel(Panel):
             The tile.
         """
         series = context.store.series["exceptions"]
-        groups = {
-            event.fingerprint for event in context.store.all(EventKind.EXCEPTION)
-        }
+        groups = {event.fingerprint for event in context.store.all(EventKind.EXCEPTION)}
         return tile(
             "Exceptions",
             number(len(groups)),
@@ -134,9 +130,19 @@ class OverviewPanel(Panel):
         )[:5]
 
         return table(
-            columns("Route", ("Method", "hidden sm:table-cell"), "Slowest", ("Calls", "hidden md:table-cell")),
+            columns(
+                "Route",
+                ("Method", "hidden sm:table-cell"),
+                "Slowest",
+                ("Calls", "hidden md:table-cell"),
+            ),
             [
-                [truncate(route, 44), method, duration(max(timings)), number(len(timings))]
+                [
+                    truncate(route, 44),
+                    method,
+                    duration(max(timings)),
+                    number(len(timings)),
+                ]
                 for (route, method), timings in ranked
             ],
         )
@@ -459,7 +465,9 @@ class CachePanel(Panel):
         return {
             "label": "Most missed",
             "note": f"{len(missed)}",
-            "rows": [[prefix, f"{count} misses", "degraded"] for prefix, count in ranked],
+            "rows": [
+                [prefix, f"{count} misses", "degraded"] for prefix, count in ranked
+            ],
         }
 
 
@@ -501,7 +509,10 @@ class OutgoingPanel(Panel):
                 tile(
                     "Retries",
                     number(
-                        sum(event.retries for event in context.store.all(EventKind.OUTGOING))
+                        sum(
+                            event.retries
+                            for event in context.store.all(EventKind.OUTGOING)
+                        )
                     ),
                     delta="in the window",
                     tone=TONE_INFO,
@@ -561,7 +572,11 @@ class OutgoingPanel(Panel):
                 [
                     host,
                     f"{total} calls",
-                    "healthy" if not failed else "degraded" if failed < total else "stalled",
+                    "healthy"
+                    if not failed
+                    else "degraded"
+                    if failed < total
+                    else "stalled",
                 ]
                 for host, (total, failed) in ranked
             ],

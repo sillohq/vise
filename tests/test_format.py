@@ -25,7 +25,12 @@ class TestDuration:
 class TestElapsed:
     @pytest.mark.parametrize(
         "value,expected",
-        [(11.0, "11s"), (131.0, "2m 11s"), (67_200.0, "18h 40m"), (353_000.0, "4d 02h")],
+        [
+            (11.0, "11s"),
+            (131.0, "2m 11s"),
+            (67_200.0, "18h 40m"),
+            (353_000.0, "4d 02h"),
+        ],
     )
     def test_renders(self, value, expected):
         assert elapsed(value) == expected
@@ -42,7 +47,8 @@ class TestSize:
 
 class TestNumber:
     @pytest.mark.parametrize(
-        "value,expected", [(5, "5"), (12_481, "12,481"), (6.4, "6.4"), (84_102, "84,102")]
+        "value,expected",
+        [(5, "5"), (12_481, "12,481"), (6.4, "6.4"), (84_102, "84,102")],
     )
     def test_renders(self, value, expected):
         assert number(value) == expected

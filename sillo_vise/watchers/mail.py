@@ -18,7 +18,8 @@ dashboard that holds one is a dashboard that hands out account access.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..recorder import Recorder
 from .base import Availability, Watcher, available, unavailable
@@ -103,7 +104,9 @@ class MailWatcher(Watcher):
             try:
                 result = await original(client, message, *args, **kwargs)
             except Exception as error:
-                self._record(client, message, "failed", f"{type(error).__name__}: {error}")
+                self._record(
+                    client, message, "failed", f"{type(error).__name__}: {error}"
+                )
                 raise
 
             self._record(client, message, _outcome(client, result), "")

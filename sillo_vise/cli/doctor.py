@@ -106,7 +106,10 @@ class Doctor(_Inspects):
             [
                 ("vise", __version__),
                 ("sillo", getattr(sillo, "__version__", "unknown")),
-                ("python", f"{sys.version.split()[0]} ({platform.python_implementation()})"),
+                (
+                    "python",
+                    f"{sys.version.split()[0]} ({platform.python_implementation()})",
+                ),
                 ("config", config.source or f"no {CONFIG_FILENAME} — using defaults"),
             ]
         )
@@ -151,10 +154,18 @@ class Doctor(_Inspects):
         self.line("Settings")
         self.pairs(
             [
-                ("dashboard", f"{config.dashboard.path} ({config.dashboard.access})"
-                 if config.dashboard.enabled else "off"),
-                ("recorder", f"{config.recorder.buffer} events per kind"
-                 if config.recorder.enabled else "off"),
+                (
+                    "dashboard",
+                    f"{config.dashboard.path} ({config.dashboard.access})"
+                    if config.dashboard.enabled
+                    else "off",
+                ),
+                (
+                    "recorder",
+                    f"{config.recorder.buffer} events per kind"
+                    if config.recorder.enabled
+                    else "off",
+                ),
                 ("reload", "on" if config.server.reload else "off"),
                 ("logs", f"{config.logs.style} at {config.logs.level}"),
             ]

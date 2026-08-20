@@ -11,9 +11,9 @@ from sillo.console.style import Palette, strip_ansi
 from sillo_vise.config import LogConfig
 from sillo_vise.logs import (
     AccessLog,
-    RepeatFilter,
     Banner,
     JSONFormatter,
+    RepeatFilter,
     ViseFormatter,
     attach_access_log,
     install_logging,
@@ -34,7 +34,15 @@ def access(**kwargs) -> tuple[AccessLog, io.StringIO]:
 class TestAccessLine:
     def test_carries_what_uvicorn_never_measured(self):
         log, stream = access()
-        log.write(RequestEvent(method="GET", path="/x", status=200, duration_ms=38.0, response_bytes=12_400))
+        log.write(
+            RequestEvent(
+                method="GET",
+                path="/x",
+                status=200,
+                duration_ms=38.0,
+                response_bytes=12_400,
+            )
+        )
         assert "38ms" in stream.getvalue() and "12.4 kB" in stream.getvalue()
 
     def test_columns_line_up_across_methods(self):
@@ -103,16 +111,25 @@ class TestFormatter:
         formatter = ViseFormatter(Palette(enabled=False))
         lines = [
             formatter.format(
-                logging.LogRecord("sillo.record", level, "", 0, "the message", None, None)
+                logging.LogRecord(
+                    "sillo.record", level, "", 0, "the message", None, None
+                )
             )
-            for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.CRITICAL)
+            for level in (
+                logging.DEBUG,
+                logging.INFO,
+                logging.WARNING,
+                logging.CRITICAL,
+            )
         ]
         assert len({line.index("the message") for line in lines}) == 1
 
     def test_a_long_logger_name_is_truncated(self):
         formatter = ViseFormatter(Palette(enabled=False))
         line = formatter.format(
-            logging.LogRecord("a.very.long.logger.name.indeed", 20, "", 0, "m", None, None)
+            logging.LogRecord(
+                "a.very.long.logger.name.indeed", 20, "", 0, "m", None, None
+            )
         )
         assert "…" in line
 
@@ -252,7 +269,9 @@ class TestBanner:
             links=[("Local", "A"), ("Foreman", "B"), ("App", "C")],
         )
         rows = [line for line in stream.getvalue().splitlines() if "➜" in line]
-        assert len({row.index(value) for row, value in zip(rows, "ABC")}) == 1
+        assert (
+            len({row.index(value) for row, value in zip(rows, "ABC", strict=True)}) == 1
+        )
 
     def test_notes_are_shown(self):
         stream = io.StringIO()
@@ -315,7 +334,9 @@ class TestRepeats:
     def test_a_different_exception_at_the_same_line_is_printed(self):
         repeat = RepeatFilter()
         repeat.filter(self.record(self.INNER))
-        assert repeat.filter(self.record(self.INNER.replace("ValueError: no", "KeyError: k")))
+        assert repeat.filter(
+            self.record(self.INNER.replace("ValueError: no", "KeyError: k"))
+        )
 
     def test_an_identical_ordinary_line_is_suppressed(self):
         repeat = RepeatFilter()

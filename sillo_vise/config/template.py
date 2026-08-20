@@ -15,7 +15,7 @@ from __future__ import annotations
 
 __all__ = ["TEMPLATE", "render_template"]
 
-TEMPLATE = '''\
+TEMPLATE = """\
 # .vise — the Sillo development server.
 #
 #   vise serve     run the application, with Foreman alongside it
@@ -66,7 +66,7 @@ TEMPLATE = '''\
 # disable = []                     # panel ids to leave out
 # refresh_ms = 2000
 # probe_seconds = 15
-'''
+"""
 
 
 def render_template(target: str | None = None) -> str:

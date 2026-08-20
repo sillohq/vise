@@ -30,7 +30,9 @@ class Routes(Command):
     arguments: ClassVar[list] = [
         Option("method", short="m", help="Only routes accepting this method"),
         Option("path", short="p", help="Only paths containing this text"),
-        Option("guard", choices=["required", "open"], help="Only routes with this guard"),
+        Option(
+            "guard", choices=["required", "open"], help="Only routes with this guard"
+        ),
     ]
 
     def handle(self) -> int | None:
@@ -62,7 +64,13 @@ class Routes(Command):
         self.table(
             ["method", "path", "name", "auth", "handler"],
             [
-                [route.method, route.path, route.name or "—", route.auth, route.handler or "—"]
+                [
+                    route.method,
+                    route.path,
+                    route.name or "—",
+                    route.auth,
+                    route.handler or "—",
+                ]
                 for route in routes
             ],
         )

@@ -141,7 +141,9 @@ class DashboardAPI:
             return None
 
         correlated = self.recorder.store.correlated(request_id)
-        grouped: dict[str, list[dict[str, Any]]] = {kind.value: [] for kind in _DETAIL_KINDS}
+        grouped: dict[str, list[dict[str, Any]]] = {
+            kind.value: [] for kind in _DETAIL_KINDS
+        }
 
         for caused in correlated:
             bucket = grouped.get(caused.kind.value)

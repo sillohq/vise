@@ -17,8 +17,8 @@ to enqueue it.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextvars import ContextVar, Token
-from typing import Iterator
 
 __all__ = [
     "current_job",

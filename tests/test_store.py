@@ -20,7 +20,11 @@ class TestBounds:
         store = Store(buffer=3)
         for index in range(10):
             store.add(request(path=f"/{index}"))
-        assert [event.path for event in store.recent(EventKind.REQUEST)] == ["/9", "/8", "/7"]
+        assert [event.path for event in store.recent(EventKind.REQUEST)] == [
+            "/9",
+            "/8",
+            "/7",
+        ]
 
     def test_kinds_are_bounded_separately(self):
         store = Store(buffer=2)

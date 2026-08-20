@@ -102,7 +102,7 @@ def _key(message: str) -> str:
     if not lines:
         return message
 
-    frames = [line for line in lines if line.strip().startswith("File \"")]
+    frames = [line for line in lines if line.strip().startswith('File "')]
     deepest = frames[-1].strip() if frames else ""
 
     return f"{deepest}\n{lines[-1].strip()}"
