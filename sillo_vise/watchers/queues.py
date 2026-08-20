@@ -8,10 +8,18 @@ changes all three without anything here being called. sillo's backends already
 answer this: ``queue_stats(name)`` returns a ``QueueStats`` with exactly the
 fields the panel shows.
 
-So there are two halves. The poll keeps the size and health tiles current, and
-the middleware hook — sillo's queue middleware contract, the same shape
-``LoggingMiddleware`` uses — records individual jobs as they run, which is what
-gives the table its statuses, durations and tracebacks.
+So there are three halves, which is one more than intended and the reason is
+worth stating. The poll keeps the size and health tiles current. The middleware
+hook — sillo's queue middleware contract, the same shape ``LoggingMiddleware``
+uses — records individual jobs where a backend offers one to register into.
+
+And ``SyncConnection``, which is what ``setup_work`` actually installs, offers
+none: the higher-level ``Job``/``Dispatchable`` system has no middleware layer
+at all. So two methods are wrapped, the same way the query and outgoing watchers
+wrap theirs — ``Dispatchable.dispatch`` for the enqueue, and
+``QueueWorker._process_job`` for the run. Without them the Queues panel appears,
+reports a live backend, and lists nothing, which is the worst of the three
+possible outcomes.
 
 The probe is a real ``ping``. "A queue is configured" and "the queue answers"
 are different states, and only the second one should produce a panel: a Redis
@@ -171,18 +179,23 @@ class QueueWatcher(Watcher):
     Attributes:
         backend: The queue backend found on the application.
         middleware: The per-job hook, when one could be registered.
+        patched: Classes and methods wrapped because no hook was offered.
+        failures: Job ids seen raising, so the worker wrapper does not report
+            them completed a moment later.
     """
 
     name = "queues"
     requires = "a queue backend that answers ping()"
 
-    __slots__ = ("backend", "middleware")
+    __slots__ = ("backend", "middleware", "patched", "failures")
 
     def __init__(self) -> None:
         """Build a detached watcher."""
         super().__init__()
         self.backend: Any = None
         self.middleware: QueueMiddleware | None = None
+        self.patched: list[tuple[type, str, Any]] = []
+        self.failures: set[str] = set()
 
     def probe(self, app: Any) -> Availability:
         """Report whether a queue backend answers.
@@ -221,6 +234,174 @@ class QueueWatcher(Watcher):
         )
         if callable(registrar):
             registrar(self.middleware)
+
+        self._wrap_dispatch(recorder)
+        self._wrap_worker(recorder)
+        self._wrap_fire(recorder)
+
+    def _wrap_dispatch(self, recorder: Recorder) -> None:
+        """Record a job being put on a queue.
+
+        Args:
+            recorder: Where events go.
+        """
+        try:
+            from sillo.work.queue.job import Dispatchable
+        except ImportError:  # pragma: no cover - work is first-party
+            return
+
+        original = Dispatchable.__dict__.get("dispatch")
+        if original is None or getattr(original, "__vise_wrapped__", False):
+            return
+
+        inner = original.__func__ if isinstance(original, classmethod) else original
+
+        async def dispatch(cls: Any, *args: Any, **kwargs: Any) -> Any:
+            """Enqueue the job, then record that it was enqueued."""
+            job_id = await inner(cls, *args, **kwargs)
+
+            recorder.job(
+                getattr(cls, "__name__", "job"),
+                queue=str(
+                    getattr(cls, "_queue_name", None)
+                    or getattr(cls, "queue", "default")
+                ),
+                task_id=str(job_id),
+                status="pending",
+                payload={"args": list(args), **kwargs} if (args or kwargs) else None,
+            )
+            return job_id
+
+        dispatch.__vise_wrapped__ = True  # type: ignore[attr-defined]
+        Dispatchable.dispatch = classmethod(dispatch)  # type: ignore[assignment]
+        self.patched.append((Dispatchable, "dispatch", original))
+
+    def _wrap_fire(self, recorder: Recorder) -> None:
+        """Record a job that raised.
+
+        The worker catches its own exceptions and logs them, so from outside
+        ``_process_job`` a failed job is indistinguishable from a successful
+        one — which had the Queues panel reporting "0 failed" for an export
+        that fails every single time.
+
+        ``Job.fire`` is where ``handle`` actually runs, and the only place the
+        exception is visible before the worker swallows it.
+
+        Args:
+            recorder: Where events go.
+        """
+        try:
+            from sillo.work.queue.job import Job
+        except ImportError:  # pragma: no cover - work is first-party
+            return
+
+        original = Job.__dict__.get("fire")
+        if original is None or getattr(original, "__vise_wrapped__", False):
+            return
+
+        failures = self.failures
+
+        async def fire(job: Any, *args: Any, **kwargs: Any) -> Any:
+            """Run the job, noting a failure on its way past."""
+            try:
+                return await original(job, *args, **kwargs)
+            except Exception as error:
+                job_id = str(getattr(job, "_job_id", "") or "")
+                failures.add(job_id)
+
+                recorder.job(
+                    type(job).__module__ + "." + type(job).__name__,
+                    queue=str(getattr(job, "queue", "default")),
+                    task_id=job_id,
+                    status="failed",
+                    attempt=int(getattr(job, "_attempts", 1) or 1),
+                    error=f"{type(error).__name__}: {error}",
+                    traceback="".join(
+                        traceback.format_exception(
+                            type(error), error, error.__traceback__
+                        )
+                    ),
+                )
+                raise
+
+        fire.__vise_wrapped__ = True  # type: ignore[attr-defined]
+        Job.fire = fire  # type: ignore[assignment]
+        self.patched.append((Job, "fire", original))
+
+    def _wrap_worker(self, recorder: Recorder) -> None:
+        """Record a job running, and how it ended.
+
+        Args:
+            recorder: Where events go.
+        """
+        try:
+            from sillo.work.queue.workers import QueueWorker
+        except ImportError:  # pragma: no cover - work is first-party
+            return
+
+        original = QueueWorker.__dict__.get("_process_job")
+        if original is None or getattr(original, "__vise_wrapped__", False):
+            return
+
+        async def process(
+            worker: Any,
+            conn: Any,
+            queue_name: str,
+            job_data: dict[str, Any],
+            worker_id: int,
+        ) -> Any:
+            """Run the job, recording each state it passes through."""
+            name = str(job_data.get("job", "job"))
+            job_id = str(job_data.get("_job_id", ""))
+            started = time.perf_counter()
+
+            recorder.job(
+                name, queue=queue_name, task_id=job_id, status="running", attempt=1
+            )
+
+            with job_scope(job_id):
+                try:
+                    result = await original(
+                        worker, conn, queue_name, job_data, worker_id
+                    )
+                except Exception as error:
+                    recorder.job(
+                        name,
+                        queue=queue_name,
+                        task_id=job_id,
+                        status="failed",
+                        attempt=1,
+                        duration_ms=(time.perf_counter() - started) * 1000,
+                        error=f"{type(error).__name__}: {error}",
+                        traceback="".join(
+                            traceback.format_exception(
+                                type(error), error, error.__traceback__
+                            )
+                        ),
+                    )
+                    raise
+
+            # `_process_job` catches its own failures, so reaching here does
+            # not mean the job succeeded — only that the worker survived it.
+            # `_wrap_fire` is what saw the exception, and it has already
+            # recorded the failure; recording "completed" on top of that would
+            # give every failed job a second, contradictory row.
+            if job_id not in self.failures:
+                recorder.job(
+                    name,
+                    queue=queue_name,
+                    task_id=job_id,
+                    status="completed",
+                    attempt=1,
+                    duration_ms=(time.perf_counter() - started) * 1000,
+                )
+
+            self.failures.discard(job_id)
+            return result
+
+        process.__vise_wrapped__ = True  # type: ignore[attr-defined]
+        QueueWorker._process_job = process  # type: ignore[assignment]
+        self.patched.append((QueueWorker, "_process_job", original))
 
     def queues(self) -> list[str]:
         """The queue names the backend knows about.
@@ -262,13 +443,18 @@ class QueueWatcher(Watcher):
             return None
 
     def detach(self) -> None:
-        """Forget the backend. The middleware stays registered.
+        """Put the wrapped methods back and forget the backend.
 
-        sillo's queue backends have no interface for removing a middleware,
-        and a watcher must not reach into a private list to invent one. In
-        practice this only matters at shutdown, where the process is going
-        away regardless.
+        The middleware, where one was registered, stays: sillo's queue backends
+        have no interface for removing one, and a watcher must not reach into a
+        private list to invent it. In practice that only matters at shutdown,
+        where the process is going away regardless.
         """
+        for owner, name, original in reversed(self.patched):
+            setattr(owner, name, original)
+        self.patched.clear()
+        self.failures.clear()
+
         self.backend = None
         self.middleware = None
         super().detach()

@@ -10,8 +10,14 @@ status code, no response bytes and no single duration, and a connection lives
 for minutes while requests live for milliseconds. Recording both through one
 code path would mean a request event with most of its fields meaningless.
 
-Application events are observed by wrapping the emitter's dispatch, which is
-where listener count and listener failures are both visible.
+Application events are observed by wrapping ``Event.trigger`` and its async
+twin. Wrapping the emitter's ``_dispatch`` looks like the obvious seam and is
+the wrong one: it runs only on the *receive* side of a networked transport, so
+on the memory backend — which is what every project starts with — it is never
+called at all, and the panel recorded nothing while reporting itself live.
+
+``trigger`` is where the listeners actually run, on every backend, and it
+returns the execution statistics the panel wants.
 
 The probe asks whether the application registers any websocket route. Every
 sillo application *can* accept one; a panel for something the project never
@@ -132,19 +138,19 @@ class RealtimeWatcher(Watcher):
 
     Attributes:
         emitter: The event emitter, when the application has one.
-        original: Its dispatch method, before wrapping.
+        patched: Classes and methods wrapped, so detaching restores them.
     """
 
     name = "realtime"
     requires = "at least one websocket route, or an event emitter"
 
-    __slots__ = ("emitter", "original")
+    __slots__ = ("emitter", "patched")
 
     def __init__(self) -> None:
         """Build a detached watcher."""
         super().__init__()
         self.emitter: Any = None
-        self.original: Callable | None = None
+        self.patched: list[tuple[type, str, Any]] = []
 
     def probe(self, app: Any) -> Availability:
         """Report whether the application does anything real-time.
@@ -191,59 +197,103 @@ class RealtimeWatcher(Watcher):
         if self.emitter is None:
             return
 
-        emitter_class = type(self.emitter)
-        original = emitter_class.__dict__.get("_dispatch")
-        if original is None or getattr(original, "__vise_wrapped__", False):
+        self._wrap_trigger()
+
+    def _wrap_trigger(self) -> None:
+        """Wrap the method that actually runs an event's listeners."""
+        try:
+            from sillo.events.core import Event as SilloEvent
+        except ImportError:  # pragma: no cover - events are first-party
             return
 
-        self.original = original
-        emitter_class._dispatch = self._wrap(original)
+        for name in ("trigger", "trigger_async"):
+            original = SilloEvent.__dict__.get(name)
+            if original is None or getattr(original, "__vise_wrapped__", False):
+                continue
 
-    def _wrap(self, original: Callable) -> Callable:
-        """Build the replacement for the emitter's dispatch.
+            setattr(SilloEvent, name, self._wrap(name, original))
+            self.patched.append((SilloEvent, name, original))
+
+    def _wrap(self, name: str, original: Callable) -> Callable:
+        """Build the replacement for one trigger method.
 
         Args:
+            name: The method's name.
             original: What it was.
 
         Returns:
-            A coroutine function that times the dispatch and records it.
+            A callable that times the dispatch and records it.
         """
+        if name == "trigger_async":
 
-        async def wrapped(emitter: Any, channel: str, envelope: Any, *args: Any) -> Any:
-            """Dispatch the event, then record how it went."""
+            async def wrapped_async(event: Any, *args: Any, **kwargs: Any) -> Any:
+                """Run the listeners, then record how it went."""
+                started = time.perf_counter()
+                try:
+                    stats = await original(event, *args, **kwargs)
+                except Exception:
+                    self._record(event, started, {}, failed=True)
+                    raise
+
+                self._record(event, started, stats)
+                return stats
+
+            wrapped_async.__vise_wrapped__ = True  # type: ignore[attr-defined]
+            return wrapped_async
+
+        def wrapped(event: Any, *args: Any, **kwargs: Any) -> Any:
+            """Run the listeners, then record how it went."""
             started = time.perf_counter()
-            failures = 0
             try:
-                return await original(emitter, channel, envelope, *args)
+                stats = original(event, *args, **kwargs)
             except Exception:
-                failures = 1
+                self._record(event, started, {}, failed=True)
                 raise
-            finally:
-                if self.recorder is not None:
-                    self.recorder.signal(
-                        channel,
-                        listeners=_listener_count(emitter, channel),
-                        duration_ms=(time.perf_counter() - started) * 1000,
-                        failures=failures,
-                        transport=_transport(emitter),
-                    )
 
-        wrapped.__name__ = "_dispatch"
-        wrapped.__qualname__ = "vise:EventEmitter._dispatch"
+            self._record(event, started, stats)
+            return stats
+
         wrapped.__vise_wrapped__ = True  # type: ignore[attr-defined]
         return wrapped
 
-    def detach(self) -> None:
-        """Put the emitter's dispatch back.
+    def _record(
+        self, event: Any, started: float, stats: Any, *, failed: bool = False
+    ) -> None:
+        """Store one emitted event.
 
-        The websocket middleware stays in the chain: sillo has no interface
-        for removing one, and reaching into the chain to invent it is not a
+        Args:
+            event: The ``Event`` that was triggered.
+            started: ``perf_counter`` reading from before the listeners ran.
+            stats: Whatever ``trigger`` returned.
+            failed: Whether the trigger itself raised.
+        """
+        if self.recorder is None:  # pragma: no cover - detached
+            return
+
+        counts = stats if isinstance(stats, dict) else {}
+
+        # `trigger` returns `listeners_executed` and `execution_time`; a
+        # cancelled event returns neither and says `cancelled` instead.
+        self.recorder.signal(
+            str(getattr(event, "name", "") or "event"),
+            listeners=int(counts.get("listeners_executed", 0) or 0),
+            duration_ms=(time.perf_counter() - started) * 1000,
+            failures=1 if failed or counts.get("cancelled") else 0,
+            transport=_transport(self.emitter),
+        )
+
+    def detach(self) -> None:
+        """Put the wrapped trigger methods back.
+
+        The websocket middleware stays in the chain: sillo has no interface for
+        removing one, and reaching into the chain to invent it is not a
         watcher's business.
         """
-        if self.emitter is not None and self.original is not None:
-            type(self.emitter)._dispatch = self.original
+        for owner, name, original in reversed(self.patched):
+            setattr(owner, name, original)
+        self.patched.clear()
+
         self.emitter = None
-        self.original = None
         super().detach()
 
 
@@ -264,8 +314,18 @@ def _payload_size(message: Message) -> int:
     return len(text.encode("utf-8"))
 
 
+#: Where an application might keep an event emitter.
+_EMITTER_KEYS = ("emitter", "events", "event_emitter")
+
+
 def _emitter(app: Any) -> Any:
     """The application's event emitter, if it has one.
+
+    Duck-typed rather than taken from a fixed key, because ``setup_work``
+    already puts something else at ``state["events"]`` — a queue
+    ``EventDispatcher``, which has neither ``event_names`` nor ``_dispatch``.
+    Reading that key and hoping meant wrapping a method that was not there and
+    reporting a panel that could see nothing.
 
     Args:
         app: The application.
@@ -274,7 +334,26 @@ def _emitter(app: Any) -> Any:
         The emitter, or None.
     """
     state = getattr(app, "state", None) or {}
-    return state.get("events") or getattr(app, "events", None)
+
+    for key in _EMITTER_KEYS:
+        candidate = state.get(key)
+        if _is_emitter(candidate):
+            return candidate
+
+    candidate = getattr(app, "events", None)
+    return candidate if _is_emitter(candidate) else None
+
+
+def _is_emitter(candidate: Any) -> bool:
+    """Whether *candidate* is an event emitter vise can watch.
+
+    Args:
+        candidate: Whatever was found.
+
+    Returns:
+        True when it has the members this watcher uses.
+    """
+    return candidate is not None and callable(getattr(candidate, "event_names", None))
 
 
 def _event_names(emitter: Any) -> list[str]:

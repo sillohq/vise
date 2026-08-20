@@ -96,6 +96,10 @@ class WorkerWatcher(Watcher):
     def stats(self) -> dict[str, Any]:
         """The current worker statistics.
 
+        A pool that reports its own ``WorkerStats`` is believed. ``WorkerPool``
+        does not report one, so the numbers are summed off the workers
+        themselves — which is where they actually are.
+
         Returns:
             The ``WorkerStats`` fields, plus whether they describe this
             process. A reader has to be able to tell "three workers, and I can
@@ -105,20 +109,26 @@ class WorkerWatcher(Watcher):
         if callable(stats):
             stats = stats()
 
-        if stats is None:
-            return {
-                "processed": 0,
-                "failed": 0,
-                "active": 0,
-                "workers": 0,
-                "circuit": "closed",
-                "uptime": int(time.time() - self._started),
-                "local": self.local,
-            }
+        if stats is not None:
+            data = stats.to_dict() if hasattr(stats, "to_dict") else dict(stats)
+            data["local"] = self.local
+            return data
 
-        data = stats.to_dict() if hasattr(stats, "to_dict") else dict(stats)
-        data["local"] = self.local
-        return data
+        members = _members(self.pool)
+
+        return {
+            "processed": sum(
+                int(getattr(worker, "_jobs_processed", 0) or 0) for worker in members
+            ),
+            "failed": 0,
+            "active": sum(
+                len(getattr(worker, "_active", ()) or ()) for worker in members
+            ),
+            "workers": len(members),
+            "circuit": "closed",
+            "uptime": int(time.time() - self._started),
+            "local": self.local,
+        }
 
     def processes(self) -> list[dict[str, Any]]:
         """One row per worker process this watcher can actually see.
@@ -130,19 +140,20 @@ class WorkerWatcher(Watcher):
         if not self.local:
             return []
 
-        workers = getattr(self.pool, "workers", None) or ()
         usage = _resource_usage()
 
         return [
             {
-                "worker": getattr(worker, "name", f"worker-{index + 1:02d}"),
-                "queues": ", ".join(getattr(worker, "queues", ()) or ["default"]),
+                "worker": getattr(worker, "name", "") or f"worker-{index + 1:02d}",
+                "queues": ", ".join(_queues_of(worker)),
                 "circuit": _circuit(worker),
-                "processed": int(getattr(worker, "processed", 0) or 0),
-                "uptime": int(time.time() - self._started),
+                "processed": int(getattr(worker, "_jobs_processed", 0) or 0),
+                "uptime": int(
+                    time.time() - (getattr(worker, "_started_at", 0) or self._started)
+                ),
                 "memory": usage,
             }
-            for index, worker in enumerate(workers)
+            for index, worker in enumerate(_members(self.pool))
         ]
 
 
@@ -159,6 +170,47 @@ def _pool(state: Any, work: Any) -> Any:
     return state.get("worker_pool") or work.get("pool") or work.get("workers")
 
 
+def _members(pool: Any) -> list[Any]:
+    """The workers a pool holds.
+
+    ``WorkerPool`` keeps them on ``_workers`` and exposes no accessor, so this
+    reads the private name. An earlier version looked for ``pool.workers``,
+    found nothing, and reported a pool of three as zero workers with an empty
+    table — while the Queues panel beside it showed their jobs completing.
+
+    Args:
+        pool: The worker pool, or None.
+
+    Returns:
+        The workers.
+    """
+    if pool is None:
+        return []
+
+    for name in ("workers", "_workers"):
+        found = getattr(pool, name, None)
+        if callable(found):
+            found = found()
+        if found:
+            return list(found)
+
+    return []
+
+
+def _queues_of(worker: Any) -> list[str]:
+    """The queues one worker listens on.
+
+    Args:
+        worker: The worker.
+
+    Returns:
+        The queue names, from its ``WorkerOptions``.
+    """
+    options = getattr(worker, "options", None)
+    queues = getattr(options, "queues", None) or getattr(worker, "queues", None)
+    return [str(name) for name in (queues or ["default"])]
+
+
 def _circuit(worker: Any) -> str:
     """A worker's circuit-breaker state, as the framework names it.
 
@@ -169,7 +221,14 @@ def _circuit(worker: Any) -> str:
         ``closed``, ``open`` or ``half_open``.
     """
     circuit = getattr(worker, "circuit", None)
-    return str(getattr(circuit, "value", None) or circuit or "closed")
+    if circuit is not None:
+        return str(getattr(circuit, "value", None) or circuit)
+
+    # No circuit breaker on this worker type. Paused and running are the two
+    # states it does have, and both say more than a hardcoded "closed".
+    if getattr(worker, "_paused", False):
+        return "paused"
+    return "closed" if getattr(worker, "_running", False) else "stalled"
 
 
 def _describe(backend: Any) -> str:

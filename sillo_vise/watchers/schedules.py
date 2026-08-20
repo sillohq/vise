@@ -207,16 +207,21 @@ def _jobs(manager: Any) -> list[Any]:
     if manager is None:
         return []
 
-    jobs = getattr(manager, "jobs", None)
-    if callable(jobs):
+    # `SchedulerManager.list()` is the accessor. An earlier version of this
+    # read `manager.jobs`, which does not exist — so the panel appeared, said
+    # "0 scheduled", and was wrong in a way nothing complained about.
+    lister = getattr(manager, "list", None)
+    if callable(lister):
         try:
-            jobs = jobs()
+            return list(lister())
         except Exception:  # noqa: BLE001 - a scheduler mid-start is not a crash
             return []
 
-    if isinstance(jobs, dict):
-        return list(jobs.values())
-    return list(jobs or ())
+    held = getattr(manager, "_jobs", None)
+    if isinstance(held, dict):
+        return list(held.values())
+
+    return []
 
 
 def _job_name(job: Any) -> str:
@@ -241,12 +246,20 @@ def _expression(job: Any) -> str:
         The cron expression or interval, as text.
     """
     trigger = getattr(job, "trigger", None)
-    return str(
-        getattr(trigger, "expression", None)
-        or getattr(job, "expression", None)
-        or trigger
-        or ""
-    )
+    if trigger is None:
+        return ""
+
+    # A cron trigger carries its expression; an interval one carries seconds
+    # and reads far better as "every 30s" than as the repr of an object.
+    expression = getattr(trigger, "expression", None)
+    if expression:
+        return str(expression)
+
+    seconds = getattr(trigger, "seconds", None) or getattr(trigger, "interval", None)
+    if seconds:
+        return f"every {int(seconds)}s"
+
+    return type(trigger).__name__.removesuffix("Trigger").lower()
 
 
 def _next_fire(job: Any) -> float | None:
@@ -258,9 +271,14 @@ def _next_fire(job: Any) -> float | None:
     Returns:
         The timestamp, or None when the scheduler has not computed one.
     """
-    when = getattr(job, "next_run", None) or getattr(job, "next_fire", None)
+    when = (
+        getattr(job, "next_run_time", None)
+        or getattr(job, "next_run", None)
+        or getattr(job, "next_fire", None)
+    )
     if when is None:
         return None
+
     timestamp = getattr(when, "timestamp", None)
     return timestamp() if callable(timestamp) else float(when)
 

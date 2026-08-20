@@ -67,17 +67,25 @@ class QueryWatcher(Watcher):
             Whether a Tortoise connection can be found.
         """
         state = getattr(app, "state", None) or {}
-        if "record" not in state:
+        manager = state.get("record")
+        if manager is None:
             return unavailable("no database — sillo.record is not set up")
 
         connections = _connections()
         if connections is None:
             return unavailable("tortoise-orm is not installed")
-        if not connections:
-            return unavailable("no database connection is open yet")
+
+        # Whether the *manager* has initialised, not whether this task can see
+        # a connection. Tortoise 0.25+ keeps connections in a task-scoped
+        # context, so `connections.all()` is empty when read from the
+        # dashboard's request task however healthy the database is — which had
+        # this panel disappearing on the first re-probe while it was busily
+        # recording queries.
+        if not getattr(manager, "_initialized", False) and not connections:
+            return unavailable("the database has not finished starting")
 
         engines = sorted({type(connection).__name__ for connection in connections})
-        return available(", ".join(engines))
+        return available(", ".join(engines) if engines else _engine_of(manager))
 
     def attach(self, app: Any, recorder: Recorder) -> None:
         """Wrap the query methods of every live connection's class.
@@ -198,6 +206,22 @@ def _connections() -> list[Any] | None:
         return list(connections.all())
     except Exception:  # noqa: BLE001 - an uninitialised ORM is not a crash
         return []
+
+
+def _engine_of(manager: Any) -> str:
+    """Name the database a manager is configured for.
+
+    Used when no connection is visible from this task but the manager reports
+    itself initialised, which is the ordinary state on Tortoise 0.25+.
+
+    Args:
+        manager: The ``DatabaseManager``.
+
+    Returns:
+        A short backend name.
+    """
+    backend = getattr(getattr(manager, "config", None), "backend", None)
+    return str(getattr(backend, "value", None) or backend or "database")
 
 
 def _rows(result: Any) -> int:

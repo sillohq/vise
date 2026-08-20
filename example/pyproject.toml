@@ -1,2 +1,19 @@
+# Vise finds the application through this, the same way `sillo` does.
 [tool.sillo]
 app = "app.main:app"
+
+[project]
+name = "sillodraft"
+version = "0.1.0"
+description = "The vise example application — every panel switched on."
+requires-python = ">=3.10"
+dependencies = [
+    "sillo-vise",
+    # The database, so the Queries panel exists.
+    "sillo-framework[record]>=0.2.1",
+    # sillo.http.client, so the Outgoing panel exists.
+    "httpx>=0.27.0",
+    # Without one of these uvicorn cannot accept a websocket connection at
+    # all: the route sits in the table and the handshake never completes.
+    "wsproto>=1.2.0",
+]
