@@ -22,6 +22,7 @@ log is a reader of it.
 
 from __future__ import annotations
 
+import json
 import sys
 import time
 from typing import IO
@@ -151,8 +152,6 @@ class AccessLog:
         Returns:
             One line of JSON.
         """
-        import json
-
         return json.dumps(
             {
                 "at": round(event.at, 3),
