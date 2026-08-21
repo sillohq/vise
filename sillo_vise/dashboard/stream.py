@@ -25,6 +25,7 @@ from typing import Any
 
 import anyio
 
+from ..lifecycle import is_shutting_down
 from ..panels import PanelRegistry
 from ..recorder import Recorder
 
@@ -100,6 +101,14 @@ class EventStream:
 
             while time.monotonic() - opened < MAX_SECONDS:
                 await anyio.sleep(self.interval)
+
+                # Checked every time round rather than only at the deadline.
+                # Uvicorn will not exit until every connection closes, and
+                # without this one the browser's stream would sit for the rest
+                # of its ten minutes while Ctrl-C appeared to be ignored.
+                if is_shutting_down():
+                    yield sse("closing", {"panel": panel_id})
+                    return
 
                 dropped = subscription.dropped
                 subscription.drain()

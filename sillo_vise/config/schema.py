@@ -74,6 +74,17 @@ class ServerConfig:
             and alongside the recorder, which is in-process and would then
             hold a different fraction of the traffic in each worker.
         root_path: Mount prefix when something else is proxying to this.
+        graceful_timeout: Seconds to let open connections finish once a stop
+            has been asked for, before they are closed anyway.
+
+            Uvicorn's own default is to wait forever, which is why Ctrl-C used
+            to look ignored: the dashboard parks a server-sent event stream for
+            up to ten minutes, and a browser left on the Foreman tab is enough
+            to hold the whole process open.
+
+            One second, because this is a development server. There is no
+            traffic worth draining here — the thing on the other end of that
+            connection is your own browser, and it reconnects by itself.
     """
 
     host: str = "127.0.0.1"
@@ -82,6 +93,7 @@ class ServerConfig:
     watch: tuple[str, ...] = DEFAULT_WATCH
     workers: int = 1
     root_path: str = ""
+    graceful_timeout: float = 1.0
 
 
 @dataclasses.dataclass(frozen=True)

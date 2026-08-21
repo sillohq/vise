@@ -16,9 +16,24 @@ from sillo import SilloApp
 
 from sillo_vise.config import PanelConfig, ViseConfig
 from sillo_vise.dashboard.stream import EventStream, sse
+from sillo_vise.lifecycle import begin_shutdown, is_shutting_down
+from sillo_vise.lifecycle import reset as reset_shutdown
 from sillo_vise.panels import PanelRegistry
 from sillo_vise.recorder import Recorder
 from sillo_vise.watchers import WatcherRegistry
+
+
+@pytest.fixture(autouse=True)
+def _not_shutting_down():
+    """Clear the process-wide stop flag around every test.
+
+    It outlives a single server by design — that is the whole point of it — so
+    a test that sets it would otherwise close the next test's stream on the
+    first frame.
+    """
+    reset_shutdown()
+    yield
+    reset_shutdown()
 
 
 @pytest.fixture
@@ -131,3 +146,65 @@ class TestStreaming:
             return frames
 
         assert any(b"event: sidebar" in frame for frame in anyio.run(read))
+
+
+class TestStoppingTheServer:
+    """Ctrl-C has to end the run even with a browser watching.
+
+    Uvicorn's graceful shutdown waits for every open connection to finish, and
+    this stream is deliberately parked for up to ten minutes. Before the stream
+    learned to notice, a tab left on the dashboard was enough to make Ctrl-C
+    look like it had been ignored — the server had begun stopping and was
+    politely waiting for a connection that had no idea.
+    """
+
+    def test_a_shutdown_closes_the_connection(self, stream):
+        feed, _, _ = stream
+        begin_shutdown()
+
+        async def read():
+            frames = []
+            async for frame in feed.frames("overview"):
+                frames.append(frame)
+                if len(frames) >= 4:  # more than it should ever send
+                    break
+            return frames
+
+        frames = anyio.run(read)
+        assert b"event: closing" in frames[-1]
+        # Opened, then closed. It must not have gone on rendering panels.
+        assert len(frames) == 2
+
+    def test_a_running_server_keeps_the_connection(self, stream):
+        """The flag is the only thing that ends it early."""
+        feed, _, _ = stream
+
+        async def read():
+            frames = []
+            async for frame in feed.frames("overview"):
+                frames.append(frame)
+                if len(frames) >= 3:
+                    break
+            return frames
+
+        assert all(b"event: closing" not in frame for frame in anyio.run(read))
+
+
+class TestShutdownFlag:
+    def test_it_starts_clear(self):
+        assert is_shutting_down() is False
+
+    def test_beginning_a_shutdown_raises_it(self):
+        begin_shutdown()
+        assert is_shutting_down() is True
+
+    def test_beginning_twice_is_harmless(self):
+        begin_shutdown()
+        begin_shutdown()
+        assert is_shutting_down() is True
+
+    def test_resetting_lets_another_server_run_in_this_process(self):
+        """Which is what a test suite is, and what `serve` twice would be."""
+        begin_shutdown()
+        reset_shutdown()
+        assert is_shutting_down() is False

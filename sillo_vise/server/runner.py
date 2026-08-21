@@ -32,6 +32,8 @@ import uvicorn
 
 from .. import __version__
 from ..config import ViseConfig
+from ..lifecycle import begin_shutdown
+from ..lifecycle import reset as reset_shutdown
 from ..logs import Banner, attach_access_log, install_logging
 from .factory import FACTORY, import_application, prepare_environment
 from .install import Installation, install
@@ -127,6 +129,40 @@ class Server:
             notes=self.installation.notes() if self.installation else [],
         )
 
+    @staticmethod
+    def _announce_shutdown_to_streams() -> None:
+        """Have uvicorn tell the dashboard the moment a stop is asked for.
+
+        Uvicorn shuts down in a fixed order: it asks every connection to close,
+        waits for them, and *only then* runs the application's lifespan
+        shutdown. So an ``on_shutdown`` hook cannot help a connection that is
+        parked — by the time it runs, the waiting is already over.
+
+        The one moment early enough is uvicorn's own signal handler, and
+        uvicorn offers no hook into it. So this wraps the method. It is additive
+        — the original is still called, and it is wrapped once — and if a future
+        uvicorn changes the signature this quietly does nothing.
+
+        It only reaches the server when reload is off. With reload on, uvicorn
+        supervises a *child* process, and on any platform that spawns rather
+        than forks that child is a fresh interpreter which never sees this. So
+        the graceful timeout below is not a fallback for an unlikely case — it
+        is what does the work in the default configuration, and it is short for
+        that reason.
+        """
+        server = getattr(uvicorn, "Server", None)
+        original = getattr(server, "handle_exit", None)
+        if original is None or getattr(original, "_vise_wrapped", False):
+            return
+
+        def handle_exit(self: Any, sig: Any, frame: Any) -> Any:
+            """Flag the shutdown, then let uvicorn do what it was going to."""
+            begin_shutdown()
+            return original(self, sig, frame)
+
+        handle_exit._vise_wrapped = True  # type: ignore[attr-defined]
+        server.handle_exit = handle_exit  # type: ignore[method-assign]
+
     def run(self, app: Any) -> int:
         """Serve *app* until it is stopped.
 
@@ -137,6 +173,8 @@ class Server:
             The exit code.
         """
         server = self.config.server
+        reset_shutdown()
+        self._announce_shutdown_to_streams()
 
         try:
             uvicorn.run(
@@ -159,6 +197,13 @@ class Server:
                 # the reloader's "detected changes" line, which is a WARNING and
                 # which vise reports itself with the panel count attached.
                 log_level="error",
+                # Uvicorn waits forever by default. One connection that does
+                # not notice the shutdown — and a live dashboard stream is
+                # exactly that — is enough to make Ctrl-C look broken. The
+                # dashboard's own stream now closes itself the moment shutdown
+                # begins; this is the backstop for everything that does not,
+                # including the served application's own long-lived requests.
+                timeout_graceful_shutdown=server.graceful_timeout,
             )
         except KeyboardInterrupt:  # pragma: no cover - a person pressed ^C
             self.stop("interrupted")
