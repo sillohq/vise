@@ -150,8 +150,8 @@ class Server:
         is what does the work in the default configuration, and it is short for
         that reason.
         """
-        server = getattr(uvicorn, "Server", None)
-        original = getattr(server, "handle_exit", None)
+        server_cls = uvicorn.Server
+        original = getattr(server_cls, "handle_exit", None)
         if original is None or getattr(original, "_vise_wrapped", False):
             return
 
@@ -161,7 +161,7 @@ class Server:
             return original(self, sig, frame)
 
         handle_exit._vise_wrapped = True  # type: ignore[attr-defined]
-        server.handle_exit = handle_exit  # type: ignore[method-assign]
+        server_cls.handle_exit = handle_exit  # type: ignore[method-assign]
 
     def run(self, app: Any) -> int:
         """Serve *app* until it is stopped.

@@ -85,6 +85,11 @@ class ServerConfig:
             One second, because this is a development server. There is no
             traffic worth draining here — the thing on the other end of that
             connection is your own browser, and it reconnects by itself.
+
+            An ``int``, not a ``float``: uvicorn's own parameter is
+            ``int | None``, so a fractional second here would either be a lie
+            or need rounding at the call site. Stating the real type is the
+            cheaper honesty.
     """
 
     host: str = "127.0.0.1"
@@ -93,7 +98,7 @@ class ServerConfig:
     watch: tuple[str, ...] = DEFAULT_WATCH
     workers: int = 1
     root_path: str = ""
-    graceful_timeout: float = 1.0
+    graceful_timeout: int = 1
 
 
 @dataclasses.dataclass(frozen=True)
