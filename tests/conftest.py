@@ -13,7 +13,7 @@ them.
 from __future__ import annotations
 
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, json
 
 from sillo_vise.config import LogConfig, RecorderConfig, ViseConfig
 from sillo_vise.recorder import Recorder
@@ -25,16 +25,16 @@ def app() -> SilloApp:
     """A small application with the route shapes the panels have to cope with."""
     application = SilloApp(title="Test application")
 
-    async def home(request, response):
-        return response.json({"ok": True})
+    async def home(ctx):
+        return json({"ok": True})
 
-    async def show(request, response, id):
-        return response.json({"id": id})
+    async def show(ctx, id):
+        return json({"id": id})
 
-    async def create(request, response):
-        return response.json({"created": True}, status_code=201)
+    async def create(ctx):
+        return json({"created": True}, status_code=201)
 
-    async def boom(request, response):
+    async def boom(ctx):
         raise ValueError("deliberate")
 
     application.get("/", handler=home, name="web.home")

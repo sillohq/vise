@@ -10,7 +10,7 @@ right, which is why they are tested rather than reasoned about.
 from __future__ import annotations
 
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, json
 from sillo.testclient import TestClient
 
 from sillo_vise.config import (
@@ -30,8 +30,8 @@ PREFIX = "/__sillo/foreman"
 def app() -> SilloApp:
     application = SilloApp(title="Install test")
 
-    async def home(request, response):
-        return response.json({"ok": True})
+    async def home(ctx):
+        return json({"ok": True})
 
     application.get("/", handler=home, name="web.home")
     return application

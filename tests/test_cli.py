@@ -35,10 +35,10 @@ def project(tmp_path, monkeypatch) -> Path:
     (tmp_path / "app").mkdir()
     (tmp_path / "app" / "__init__.py").write_text("")
     (tmp_path / "app" / "main.py").write_text(
-        "from sillo import SilloApp\n"
+        "from sillo import SilloApp, json\n"
         "app = SilloApp(title='Discovered')\n"
-        "async def home(request, response):\n"
-        "    return response.json({})\n"
+        "async def home(ctx):\n"
+        "    return json({})\n"
         "app.get('/', handler=home, name='web.home')\n"
     )
     (tmp_path / ".git").mkdir()

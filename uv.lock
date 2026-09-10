@@ -640,18 +640,14 @@ wheels = [
 
 [[package]]
 name = "sillo-framework"
-version = "0.2.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.2.dev1"
+source = { git = "https://github.com/sillohq/core.git?branch=main#cd4c5068d4bbbad3fcbfad9719d3403cc34378b2" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic" },
     { name = "python-multipart" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
     { name = "uvicorn" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/45/42/233a9e882a5cab6013effa18b83e1cf79d0bee5c05cb0c35366b23a214dd/sillo_framework-0.2.1.tar.gz", hash = "sha256:8b79e65078db300819f8bf0b469ec2d0b036b9cb3f6d5eb8b14a92d57031d9d7", size = 4223295, upload-time = "2026-08-19T14:31:29.692Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/92/246416afea02c86e5e749d8a6271e18326578969a19686d6430660a8197a/sillo_framework-0.2.1-py3-none-any.whl", hash = "sha256:f4d03414723498b16f903916f13ce99a56477b688a0ccfeca9d8896f67dca8c0", size = 969630, upload-time = "2026-08-19T14:31:27.711Z" },
 ]
 
 [[package]]
@@ -684,7 +680,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0" },
-    { name = "sillo-framework", specifier = ">=0.2.1" },
+    { name = "sillo-framework", git = "https://github.com/sillohq/core.git?branch=main" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1" },
     { name = "uvicorn", specifier = ">=0.27.0" },
     { name = "watchfiles", marker = "extra == 'dev'", specifier = ">=0.21.0" },

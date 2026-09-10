@@ -109,6 +109,15 @@ subsystem switched on — and none by a unit test.
 - One job is named one way. The enqueue and run paths used different names for
   the same class, putting it under two rows in one column.
 
+### Framework
+
+- **Pinned to Sillo v1.** The floor is now `sillo-framework>=1.0` (was
+  `>=0.2.1`). 1.0 is not on PyPI yet, so `[tool.uv.sources]` points
+  development and CI at the branch that *is* 1.0 — its metadata still says
+  0.3.x. The dashboard is raw ASGI middleware and never touched the old
+  `Request`/`Response` API, so the only v1 change was to the test fixtures'
+  handler signatures. Drop the `[tool.uv.sources]` entry once 1.0 publishes.
+
 ### Known limitations
 
 - **Workers out of process are only partly visible.** When the worker pool runs

@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, json
 from sillo.mail.client import setup_mail
 
 from sillo_vise.config import PanelConfig, RecorderConfig, ViseConfig
@@ -26,8 +26,8 @@ from sillo_vise.watchers import WatcherRegistry
 def app() -> SilloApp:
     application = SilloApp(title="panels")
 
-    async def home(request, response):
-        return response.json({})
+    async def home(ctx):
+        return json({})
 
     application.get("/", handler=home, name="web.home")
     return application

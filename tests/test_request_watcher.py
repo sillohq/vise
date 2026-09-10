@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 
+from sillo import json
 from sillo.testclient import TestClient
 
 from sillo_vise.recorder import EventKind
@@ -74,9 +75,9 @@ class TestRecording:
 
 class TestSlowRequests:
     def test_a_slow_request_is_marked(self, app, recorder):
-        async def slow(request, response):
+        async def slow(ctx):
             time.sleep(0.06)
-            return response.json({})
+            return json({})
 
         app.get("/slow", handler=slow, name="api.slow")
         RequestWatcher().attach(app, recorder)
@@ -128,10 +129,10 @@ class TestSkipping:
 
 class TestCorrelation:
     def test_events_emitted_during_a_request_carry_its_id(self, app, recorder):
-        async def busy(request, response):
+        async def busy(ctx):
             recorder.query("SELECT 1", duration_ms=1.0)
             recorder.cache("k", result="hit")
-            return response.json({})
+            return json({})
 
         app.get("/busy", handler=busy, name="api.busy")
         RequestWatcher().attach(app, recorder)
@@ -143,9 +144,9 @@ class TestCorrelation:
         assert len(recorder.store.correlated(request.id)) == 2
 
     def test_two_requests_do_not_share_a_context(self, app, recorder):
-        async def busy(request, response, id):
+        async def busy(ctx, id):
             recorder.query(f"SELECT {id}", duration_ms=1.0)
-            return response.json({})
+            return json({})
 
         app.get("/busy/{id}", handler=busy, name="api.busy")
         RequestWatcher().attach(app, recorder)
@@ -169,9 +170,9 @@ class TestBodies:
         assert requests_of(recorder)[0].response_body == response.text
 
     def test_the_request_body_is_captured(self, app, recorder):
-        async def echo(request, response):
-            body = await request.body
-            return response.json({"len": len(body)})
+        async def echo(ctx):
+            body = await ctx.body
+            return json({"len": len(body)})
 
         app.post("/echo", handler=echo, name="api.echo")
         RequestWatcher().attach(app, recorder)
@@ -185,9 +186,9 @@ class TestBodies:
         """The watcher observes; it never withholds."""
         seen = {}
 
-        async def echo(request, response):
-            seen["body"] = await request.body
-            return response.json({})
+        async def echo(ctx):
+            seen["body"] = await ctx.body
+            return json({})
 
         app.post("/echo", handler=echo, name="api.echo")
         RequestWatcher().attach(app, recorder)
@@ -203,8 +204,8 @@ class TestBodies:
 
         small = Recorder(RecorderConfig(max_body_bytes=64))
 
-        async def big(request, response):
-            return response.json({"payload": "x" * 5000})
+        async def big(ctx):
+            return json({"payload": "x" * 5000})
 
         app.get("/big", handler=big, name="api.big")
         RequestWatcher().attach(app, small)

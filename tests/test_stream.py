@@ -12,7 +12,7 @@ import json
 
 import anyio
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, responses
 
 from sillo_vise.config import PanelConfig, ViseConfig
 from sillo_vise.dashboard.stream import EventStream, sse
@@ -40,8 +40,8 @@ def _not_shutting_down():
 def stream():
     app = SilloApp(title="stream")
 
-    async def home(request, response):
-        return response.json({})
+    async def home(ctx):
+        return responses.json({})
 
     app.get("/", handler=home, name="web.home")
 

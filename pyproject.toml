@@ -32,11 +32,19 @@ dependencies = [
     # The console, the middleware contract, the route table and the work
     # types all come from the framework. Nothing here reaches for the ORM:
     # the Queries panel probes for it and hides itself when it is absent.
-    "sillo-framework>=0.2.1",
+    #
+    # Floor is 1.0: vise is written against the v1 context/middleware surface.
+    # 1.0 is not on PyPI yet, so `[tool.uv.sources]` below points dev and CI
+    # at the branch that *is* 1.0 (its metadata still says 0.3.x). Drop that
+    # source once 1.0 publishes.
+    "sillo-framework>=1.0",
     "uvicorn>=0.27.0",
     # tomllib is standard from 3.11. Below that, .vise needs a parser.
     "tomli>=2.0.1; python_version < '3.11'",
 ]
+
+[tool.uv.sources]
+sillo-framework = { git = "https://github.com/sillohq/core.git", branch = "main" }
 
 [project.scripts]
 vise = "sillo_vise.__main__:main"

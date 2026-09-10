@@ -13,7 +13,7 @@ import json
 import logging
 
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, responses
 from sillo.testclient import TestClient
 
 from sillo_vise.config import (
@@ -33,11 +33,11 @@ def build(**dashboard) -> tuple[SilloApp, object]:
     """An application with vise installed, admitting the test client."""
     app = SilloApp(title="Dashboard test")
 
-    async def home(request, response):
-        return response.json({"ok": True})
+    async def home(ctx):
+        return responses.json({"ok": True})
 
-    async def show(request, response, id):
-        return response.json({"id": id})
+    async def show(ctx, id):
+        return responses.json({"id": id})
 
     app.get("/", handler=home, name="web.home")
     app.get("/documents/{id}", handler=show, name="api.documents.show")
@@ -74,8 +74,8 @@ class TestMounting:
         """A prefix of /__sillo/foreman must not claim /__sillo/foremanager."""
         app, installation = build()
 
-        async def other(request, response):
-            return response.json({"mine": True})
+        async def other(ctx):
+            return responses.json({"mine": True})
 
         app.get("/__sillo/foremanager", handler=other, name="web.other")
         try:
@@ -149,10 +149,10 @@ class TestRequestCorrelation:
     def test_the_caused_events_are_grouped_by_kind(self, client):
         app, installation = build()
 
-        async def busy(request, response):
+        async def busy(ctx):
             installation.recorder.query("SELECT 1", duration_ms=1.0)
             installation.recorder.cache("k", result="hit")
-            return response.json({})
+            return responses.json({})
 
         app.get("/busy", handler=busy, name="api.busy")
         try:
@@ -188,8 +188,8 @@ class TestAccess:
         the safe answer when there is nothing to check."""
         app = SilloApp(title="gated")
 
-        async def home(request, response):
-            return response.json({})
+        async def home(ctx):
+            return responses.json({})
 
         app.get("/", handler=home, name="web.home")
         config = ViseConfig(
@@ -331,8 +331,8 @@ class TestRecorderOff:
     def test_nothing_is_installed(self):
         app = SilloApp(title="off")
 
-        async def home(request, response):
-            return response.json({"ok": True})
+        async def home(ctx):
+            return responses.json({"ok": True})
 
         app.get("/", handler=home, name="web.home")
         config = ViseConfig(
@@ -347,8 +347,8 @@ class TestRecorderOff:
     def test_the_application_is_untouched(self):
         app = SilloApp(title="off")
 
-        async def home(request, response):
-            return response.json({"ok": True})
+        async def home(ctx):
+            return responses.json({"ok": True})
 
         app.get("/", handler=home, name="web.home")
         install(app, ViseConfig(recorder=RecorderConfig(enabled=False)))
@@ -463,9 +463,9 @@ class TestDetail:
     def test_the_request_detail_lists_what_it_caused(self, client):
         app, installation = build()
 
-        async def busy(request, response):
+        async def busy(ctx):
             installation.recorder.query("SELECT 1", duration_ms=1.0)
-            return response.json({})
+            return responses.json({})
 
         app.get("/busy", handler=busy, name="api.busy")
         try:
@@ -490,9 +490,9 @@ class TestDetail:
         and here is the route that ran it"."""
         app, installation = build()
 
-        async def busy(request, response):
+        async def busy(ctx):
             installation.recorder.query("SELECT slow", duration_ms=900.0)
-            return response.json({})
+            return responses.json({})
 
         app.get("/busy", handler=busy, name="api.busy")
         try:

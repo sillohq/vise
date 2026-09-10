@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 
 import pytest
-from sillo import SilloApp
+from sillo import SilloApp, json
 from sillo.mail.client import setup_mail
 
 from sillo_vise.config import PanelConfig
@@ -36,8 +36,8 @@ def bare() -> SilloApp:
     """An application with nothing but a route."""
     application = SilloApp(title="bare")
 
-    async def home(request, response):
-        return response.json({})
+    async def home(ctx):
+        return json({})
 
     application.get("/", handler=home, name="web.home")
     return application
