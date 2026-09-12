@@ -3,7 +3,10 @@ name: release
 on:
   push:
     tags:
-      - 'vise-v*'
+      # Matches the distribution name, as every sibling does: sillo-core-v*,
+      # sillo-wire-v*, sillo-graphql-v*. The package is `sillo-vise`, so a bare
+      # `vise-v*` was the odd one out.
+      - 'sillo-vise-v*'
 
 jobs:
   publish:
@@ -20,7 +23,7 @@ jobs:
 
       - name: Read the tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#vise-v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${GITHUB_REF_NAME#sillo-vise-v}" >> "$GITHUB_OUTPUT"
 
       # Three places carry the version, and a release that reports one it is not
       # is worse than one that fails to build. sillo-core shipped 0.0.1a15 with
@@ -43,6 +46,11 @@ jobs:
 
       - name: Test
         run: uv run pytest -q
+
+      # Nothing should be in dist/ on a fresh runner, but a stale artefact here
+      # is published without complaint, so it is removed rather than assumed.
+      - name: Clean old builds
+        run: rm -rf dist build ./*.egg-info
 
       - name: Build
         run: uv build
