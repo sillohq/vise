@@ -24,4 +24,4 @@ __all__ = ["__version__"]
 #: Kept in step with ``version`` in pyproject.toml. The release workflow
 #: refuses to publish when the two disagree, because a release that reports a
 #: version it is not is worse than one that fails to build.
-__version__: str = "1.0.0a1"
+__version__: str = "1.0.0a2"

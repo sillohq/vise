@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sillo-vise"
-version = "1.0.0a1"
+version = "1.0.0a2"
 description = "The Sillo development server — vise serve, with the Foreman operations dashboard built in."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -37,7 +37,7 @@ dependencies = [
     # 1.0 is not on PyPI yet, so `[tool.uv.sources]` below points dev and CI
     # at the branch that *is* 1.0 (its metadata still says 0.3.x). Drop that
     # source once 1.0 publishes.
-    "sillo-framework>=1.0",
+    "sillo-framework>=1.0.0a1",
     "uvicorn>=0.27.0",
     # tomllib is standard from 3.11. Below that, .vise needs a parser.
     "tomli>=2.0.1; python_version < '3.11'",
