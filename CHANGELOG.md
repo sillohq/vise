@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 1.0.0a1 — 2026-09-13
+
+First alpha, released alongside `sillo-framework` 1.0.0a1. Install with
+`pip install --pre sillo-vise==1.0.0a1`. An alpha: this is what 1.0 is expected
+to look like, but the API is not frozen yet.
+
+Everything below shipped in this release; it was previously tracked as 0.1.0
+and was never published under that number.
+
 
 The first release. `vise serve` runs a Sillo application, replaces uvicorn's
 logging, and mounts the Foreman operations dashboard beside it.
