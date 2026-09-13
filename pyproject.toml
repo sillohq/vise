@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sillo-vise"
-version = "0.1.0"
+version = "1.0.0a1"
 description = "The Sillo development server — vise serve, with the Foreman operations dashboard built in."
 readme = "README.md"
 requires-python = ">=3.10"
