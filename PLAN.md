@@ -31,7 +31,7 @@
 >
 > **Not built, and why**
 >
-> - **Request replay and HAR export**, listed on the Foreman page under
+> - **Request replay and HAR export**, listed on the Vise page under
 >   Requests. Both are write-shaped features against somebody's live
 >   application; neither is needed to see what an application is doing.
 > - **Queue actions** — retry a job, pause a queue, flush a cache key. The
@@ -44,11 +44,11 @@
 
 # The original plan
 
-**Vise is the development server for Sillo, with Foreman built in.**
+**Vise is the development server for Sillo, with Vise built in.**
 
 One command — `vise serve` — runs the application, replaces uvicorn's logging
-with something legible, and mounts the Foreman operations dashboard at
-`/__sillo/foreman`. A `.vise` file in the project root configures all of it.
+with something legible, and mounts the Vise operations dashboard at
+`/__sillo/vise`. A `.vise` file in the project root configures all of it.
 
 - Distribution: `sillo-vise` · import package: `sillo_vise` · console script: `vise`
 - Repository: `sillohq/vise`, sibling of `core/`, `oauth/`, `inertia/`, `start/`
@@ -66,7 +66,7 @@ with something legible, and mounts the Foreman operations dashboard at
 | Config file | `.vise`, TOML syntax. `tomllib` on 3.11+, `tomli` on 3.10. |
 | CLI toolkit | `sillo.console` — the framework's own `Console`/`Command`/`Output`, so `vise` and `sillo` look and behave identically. |
 
-## 2. The four constraints the Foreman page ships with
+## 2. The four constraints the Vise page ships with
 
 These are specification, not follow-up work. Each is expensive to retrofit.
 
@@ -154,7 +154,7 @@ watch = ["app", "config"]
 
 [dashboard]
 enabled = true
-path = "/__sillo/foreman"
+path = "/__sillo/vise"
 access = "local"                 # local | token | off
 
 [recorder]
@@ -187,7 +187,7 @@ anyway.
   ▲ vise 0.1.0                        sillo 0.2.1 · python 3.12.13
 
   ➜  Local      http://127.0.0.1:8000
-  ➜  Foreman    http://127.0.0.1:8000/__sillo/foreman
+  ➜  Vise    http://127.0.0.1:8000/__sillo/vise
   ➜  App        app.main:app · reload on · 11 panels live
 
   09:14:22  GET   /api/v1/documents           200    38ms   12.4 kB

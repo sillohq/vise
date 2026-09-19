@@ -8,7 +8,7 @@ cd example
 vise serve
 ```
 
-Open <http://127.0.0.1:8000/__sillo/foreman/>. Then, in another terminal, give
+Open <http://127.0.0.1:8000/__sillo/vise/>. Then, in another terminal, give
 it something to show:
 
 ```bash

@@ -11,7 +11,7 @@ and was never published under that number.
 
 
 The first release. `vise serve` runs a Sillo application, replaces uvicorn's
-logging, and mounts the Foreman operations dashboard beside it.
+logging, and mounts the Vise operations dashboard beside it.
 
 ### The dashboard
 
@@ -30,7 +30,7 @@ logging, and mounts the Foreman operations dashboard beside it.
   payload and traceback. Rows that are summaries rather than events — a queue, a
   channel, a configuration key — are not clickable, because giving a reader
   something to click that leads nowhere is worse than giving them nothing.
-- **No mocked browser chrome.** The Foreman mockup draws traffic-light dots and
+- **No mocked browser chrome.** The Vise mockup draws traffic-light dots and
   an address bar; that belongs in a screenshot and not in the tool. What it
   carried — the application's name, where it is, and the pause control — moved
   into the sidebar and the panel header.

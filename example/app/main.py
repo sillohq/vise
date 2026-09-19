@@ -4,7 +4,7 @@ Sillodraft — the example application, with everything switched on.
     cd example
     vise serve
 
-Then open http://127.0.0.1:8000/__sillo/foreman/ and, in another terminal,
+Then open http://127.0.0.1:8000/__sillo/vise/ and, in another terminal,
 ``python traffic.py`` to give it something to show.
 
 This wires up every subsystem vise can watch, so all fourteen panels are live:
