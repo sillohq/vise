@@ -3,7 +3,7 @@
  *
  * Every path is relative to where the interface was served from, never
  * absolute. The dashboard's mount point is configurable — `[dashboard] path`
- * defaults to `/__sillo/foreman` and a project can move it — so a hard-coded
+ * defaults to `/__sillo/vise` and a project can move it — so a hard-coded
  * path would work on the default and nowhere else.
  */
 
@@ -13,7 +13,7 @@ import type { Detail, Meta, Rendered } from './types'
  * The prefix the dashboard is mounted under, worked out from the current URL.
  *
  * The index is served for any unknown path under the mount, so the browser may
- * be at `/__sillo/foreman`, at `/__sillo/foreman/`, or at a deeper path the
+ * be at `/__sillo/vise`, at `/__sillo/vise/`, or at a deeper path the
  * interface routed to itself. Trimming back to the mount means finding where
  * the interface's own routing begins, and the one thing known for certain is
  * that `/api/meta` sits directly under the mount.

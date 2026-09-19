@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "The Foreman dashboard interface, built into sillo_vise/dashboard/static.",
+  "description": "The Vise dashboard interface, built into sillo_vise/dashboard/static.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
