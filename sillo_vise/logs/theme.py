@@ -46,7 +46,7 @@ ACCENT = Style(fg="#fc0345")
 #: The banner's title.
 TITLE = Style(bold=True)
 
-#: A banner label — "Local", "Foreman", "App".
+#: A banner label — "Local", "Vise", "App".
 LABEL = Style(fg="#fc0345")
 
 #: The arrow that introduces a banner line.

@@ -23,7 +23,7 @@ from sillo_vise.config import (
 from sillo_vise.recorder import EventKind
 from sillo_vise.server.install import install
 
-PREFIX = "/__sillo/foreman"
+PREFIX = "/__sillo/vise"
 
 
 @pytest.fixture

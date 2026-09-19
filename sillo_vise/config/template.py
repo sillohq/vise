@@ -18,7 +18,7 @@ __all__ = ["TEMPLATE", "render_template"]
 TEMPLATE = """\
 # .vise — the Sillo development server.
 #
-#   vise serve     run the application, with Foreman alongside it
+#   vise serve     run the application, with Vise alongside it
 #   vise doctor    report what is configured and what can be observed
 #   vise panels    list the panels, and why any are missing
 #
@@ -38,7 +38,7 @@ TEMPLATE = """\
 
 [dashboard]
 # enabled = true
-# path = "/__sillo/foreman"
+# path = "/__sillo/vise"
 # access = "local"                 # local | token | open
 # token = ""                       # required by access = "token"
 

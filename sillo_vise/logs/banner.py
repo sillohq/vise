@@ -9,7 +9,7 @@ answers those and stops::
       ▲ vise 0.1.0                          sillo 0.2.1 · python 3.12.13
 
       ➜  Local      http://127.0.0.1:8000
-      ➜  Foreman    http://127.0.0.1:8000/__sillo/foreman
+      ➜  Vise    http://127.0.0.1:8000/__sillo/vise
       ➜  App        app.main:app
       ➜  Panels     11 live · queries, cache and 1 more waiting
 

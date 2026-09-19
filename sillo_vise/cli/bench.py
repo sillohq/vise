@@ -1,7 +1,7 @@
 """
 sillo_vise.cli.bench — ``vise bench``.
 
-Rule three of the Foreman specification: *the cost is a published number*. Vise
+Rule three of the Vise specification: *the cost is a published number*. Vise
 on and vise off are separate rows, measured on the same machine against the same
 application, and the README carries both.
 

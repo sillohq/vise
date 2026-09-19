@@ -12,7 +12,7 @@ panel whose watcher is not among them is never built and never appears in the
 sidebar. A panel therefore never has to render an empty state for a subsystem
 that does not exist — only for one that exists and has been quiet.
 
-The rendered shape deliberately matches the mockups on sillo.build/foreman
+The rendered shape deliberately matches the mockups on sillo.build/vise
 field for field. Tiles carry a label, a value, a delta, a tone and a sparkline;
 a table carries columns with responsive classes and rows of strings; the side
 rail carries name, detail and state triples. The interface is then a renderer

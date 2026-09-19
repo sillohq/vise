@@ -6,7 +6,7 @@ anything that would otherwise keep the process alive.
 It exists because of Ctrl-C. Uvicorn's graceful shutdown waits for every open
 connection to finish, and the dashboard holds one open on purpose: an
 ``EventSource`` for the live panels, parked for up to ten minutes. A browser
-left on the Foreman tab therefore made Ctrl-C look like it did nothing at all —
+left on the Vise tab therefore made Ctrl-C look like it did nothing at all —
 the server had begun shutting down and was politely waiting for a stream that
 had no idea anything had changed.
 

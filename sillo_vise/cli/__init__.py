@@ -35,7 +35,7 @@ def build_console() -> Console:
     """
     console = Console(
         prog="vise",
-        description="The Sillo development server, with Foreman built in.",
+        description="The Sillo development server, with Vise built in.",
         version=__version__,
     )
     console.add_many(COMMANDS)
