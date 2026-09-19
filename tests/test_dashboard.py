@@ -26,7 +26,7 @@ from sillo_vise.config import (
 from sillo_vise.dashboard import AccessGate
 from sillo_vise.server.install import install
 
-PREFIX = "/__sillo/foreman"
+PREFIX = "/__sillo/vise"
 
 
 def build(**dashboard) -> tuple[SilloApp, object]:
@@ -71,16 +71,16 @@ class TestMounting:
         assert client.get("/").json() == {"ok": True}
 
     def test_a_similar_path_is_not_claimed(self):
-        """A prefix of /__sillo/foreman must not claim /__sillo/foremanager."""
+        """A prefix of /__sillo/vise must not claim /__sillo/viseager."""
         app, installation = build()
 
         async def other(ctx):
             return responses.json({"mine": True})
 
-        app.get("/__sillo/foremanager", handler=other, name="web.other")
+        app.get("/__sillo/viseager", handler=other, name="web.other")
         try:
             with TestClient(app) as test_client:
-                assert test_client.get("/__sillo/foremanager").json() == {"mine": True}
+                assert test_client.get("/__sillo/viseager").json() == {"mine": True}
         finally:
             installation.shutdown()
 

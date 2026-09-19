@@ -1,6 +1,6 @@
 # vise
 
-**The Sillo development server, with Foreman built in.**
+**The Sillo development server, with Vise built in.**
 
 ```bash
 pip install sillo-vise
@@ -8,14 +8,14 @@ vise serve
 ```
 
 One command runs the project's application, replaces uvicorn's logging with
-something a person can read at a glance, and mounts the Foreman operations
+something a person can read at a glance, and mounts the Vise operations
 dashboard beside it.
 
 ```
   ▲ vise 0.1.0                        sillo 0.2.1 · python 3.12.13
 
   ➜  Local      http://127.0.0.1:8000
-  ➜  Foreman    http://127.0.0.1:8000/__sillo/foreman
+  ➜  Vise    http://127.0.0.1:8000/__sillo/vise
   ➜  App        app.main:app
   ➜  Panels     9 live · 5 waiting on what they watch
 
@@ -99,7 +99,7 @@ port = 8000
 reload = true
 
 [dashboard]
-path = "/__sillo/foreman"
+path = "/__sillo/vise"
 access = "local"          # local | token | open
 
 [recorder]
@@ -120,7 +120,7 @@ variables, command-line flags. Only flags actually typed override the file.
 
 | Command | What it does |
 | --- | --- |
-| `vise serve` | Run the application with Foreman alongside it |
+| `vise serve` | Run the application with Vise alongside it |
 | `vise init` | Write a starter `.vise` |
 | `vise doctor` | Report what vise can observe here, and what it cannot |
 | `vise panels` | List the panels, and why any are missing |
@@ -135,7 +135,7 @@ in a check without parsing its output.
 
 ## The four rules it ships with
 
-These are from the Foreman specification, and each is expensive to retrofit and
+These are from the Vise specification, and each is expensive to retrofit and
 cheap to design in.
 
 Bodies are captured by default. That is a deliberate choice for a loopback-only
@@ -234,7 +234,7 @@ Reproduce with `vise bench -n 2000`.
 
 ## What is not built
 
-The Foreman specification lists more than this ships, and the gaps are
+The Vise specification lists more than this ships, and the gaps are
 deliberate rather than pending.
 
 - **Request replay and HAR export.** Both send requests to somebody's live
@@ -261,7 +261,7 @@ nothing to start.
 
 ```bash
 cd example
-vise serve            # then open /__sillo/foreman/
+vise serve            # then open /__sillo/vise/
 python traffic.py     # in another terminal
 ```
 

@@ -39,12 +39,12 @@ _SWITCHES: dict[str, tuple[str, str]] = {
 
 
 class Serve(Command):
-    """Run the application, with Foreman alongside it."""
+    """Run the application, with Vise alongside it."""
 
     name = "serve"
-    help = "Run the application, with the Foreman dashboard alongside it"
+    help = "Run the application, with the Vise dashboard alongside it"
     description = (
-        "Serves the project's application and mounts the Foreman operations "
+        "Serves the project's application and mounts the Vise operations "
         "dashboard beside it. Configuration comes from .vise; anything given "
         "here wins over the file."
     )
@@ -59,7 +59,7 @@ class Serve(Command):
         Option(
             "reload", choices=["on", "off"], help="Restart when watched files change"
         ),
-        Option("dashboard", choices=["on", "off"], help="Mount the Foreman dashboard"),
+        Option("dashboard", choices=["on", "off"], help="Mount the Vise dashboard"),
         Option(
             "record", choices=["on", "off"], help="Collect what the application does"
         ),

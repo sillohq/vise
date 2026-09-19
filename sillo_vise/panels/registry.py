@@ -9,7 +9,7 @@ That last part matters for more than tidiness. A panel that cannot be built is a
 panel that cannot raise while being built, so a project without Redis cannot
 produce a traceback from the Queues panel — there is nothing to traceback from.
 
-Groups come out in the order the Foreman page uses: Monitor, Work, Diagnose,
+Groups come out in the order the Vise page uses: Monitor, Work, Diagnose,
 Tools. A group with no live panels is dropped, so a project with no database, no
 queue and no mail sees a shorter sidebar rather than three empty headings.
 """
@@ -39,7 +39,7 @@ __all__ = ["GROUPS", "PanelRegistry", "all_panels"]
 
 logger = logging.getLogger("sillo_vise")
 
-#: Sidebar groups, in the order the Foreman page uses them.
+#: Sidebar groups, in the order the Vise page uses them.
 GROUPS = ("Monitor", "Work", "Diagnose", "Tools")
 
 

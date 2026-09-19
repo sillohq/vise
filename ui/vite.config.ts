@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
  * output is committed. That is what lets `pip install sillo-vise` need no node.
  *
  * `base` is relative rather than absolute because the dashboard's mount point is
- * configurable — `[dashboard] path` defaults to `/__sillo/foreman` and a project
+ * configurable — `[dashboard] path` defaults to `/__sillo/vise` and a project
  * can move it. An absolute base would bake one path into the bundle and break
  * every other.
  */

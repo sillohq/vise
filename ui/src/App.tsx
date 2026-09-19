@@ -1,5 +1,5 @@
 /**
- * Foreman.
+ * Vise.
  *
  * The whole interface is a renderer. Which panels exist, what each one shows and
  * what every number means were all decided on the Python side; this holds which
@@ -27,7 +27,7 @@ const RETRY_MS = 2000
  * The panel named in the current URL, if any.
  *
  * The dashboard serves its index for any unknown path under the mount, so
- * `/__sillo/foreman/queries` reaches the interface and this is what turns it
+ * `/__sillo/vise/queries` reaches the interface and this is what turns it
  * into an open panel. That is what makes a link to a panel a real link.
  */
 function panelFromUrl(): string | null {

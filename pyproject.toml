@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "sillo-vise"
 version = "1.0.0a2"
-description = "The Sillo development server — vise serve, with the Foreman operations dashboard built in."
+description = "The Sillo development server — vise serve, with the Vise operations dashboard built in."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "BSD-3-Clause"
 authors = [
     {name = "Chidebele Dunamis", email = "techwithdunamix@gmail.com"}
 ]
-keywords = ["sillo", "vise", "foreman", "dashboard", "dev-server", "observability", "asgi"]
+keywords = ["sillo", "vise", "vise", "dashboard", "dev-server", "observability", "asgi"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

@@ -1,5 +1,5 @@
 """
-sillo_vise.dashboard — Foreman, served alongside the application.
+sillo_vise.dashboard — Vise, served alongside the application.
 
 One raw ASGI middleware answering under its own prefix, gated by
 :class:`~sillo_vise.dashboard.security.AccessGate`, serving a built interface out

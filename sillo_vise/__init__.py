@@ -1,8 +1,8 @@
 """
-sillo-vise — the Sillo development server, with Foreman built in.
+sillo-vise — the Sillo development server, with Vise built in.
 
 ``vise serve`` runs the project's application, replaces uvicorn's logging with
-something a person can read at a glance, and mounts the Foreman operations
+something a person can read at a glance, and mounts the Vise operations
 dashboard alongside it. Everything it does is configured by a ``.vise`` file in
 the project root, and everything it shows is observed from the application that
 is actually running.

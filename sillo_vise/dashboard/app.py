@@ -59,7 +59,7 @@ BASE_HEADERS: tuple[tuple[bytes, bytes], ...] = (
 
 
 class Dashboard:
-    """Raw ASGI middleware serving Foreman under its prefix.
+    """Raw ASGI middleware serving Vise under its prefix.
 
     Attributes:
         app: The application this wraps.
@@ -93,7 +93,7 @@ class Dashboard:
         """
         self.app = app
         self.config = config
-        self.prefix = config.dashboard.path.rstrip("/") or "/__sillo/foreman"
+        self.prefix = config.dashboard.path.rstrip("/") or "/__sillo/vise"
 
         self.gate = AccessGate(config.dashboard.access, config.dashboard.token)
         registry = panels or PanelRegistry(watchers, recorder, config, target)
@@ -159,7 +159,7 @@ class Dashboard:
             # The built index references its assets relatively — `./assets/…`
             # — because the mount point is configurable and an absolute base
             # would bake one path into the bundle. Relative only resolves
-            # correctly under a trailing slash: opened at `/__sillo/foreman`,
+            # correctly under a trailing slash: opened at `/__sillo/vise`,
             # the browser would ask for `/__sillo/assets/…` and get nothing.
             await _redirect(send, f"{self.prefix}/")
             return
@@ -272,8 +272,8 @@ def _under(path: str, prefix: str) -> bool:
     """Whether a path belongs to the dashboard.
 
     Checked as an exact match or a match followed by ``/``, so a prefix of
-    ``/__sillo/foreman`` does not claim an application's own
-    ``/__sillo/foremanager``.
+    ``/__sillo/vise`` does not claim an application's own
+    ``/__sillo/viseager``.
 
     Args:
         path: The request's path.

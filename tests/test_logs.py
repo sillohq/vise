@@ -75,17 +75,17 @@ class TestAccessLine:
 
 class TestWhatIsNotLogged:
     def test_the_dashboard_does_not_log_itself(self):
-        log, stream = access(dashboard_path="/__sillo/foreman")
-        log.write(RequestEvent(path="/__sillo/foreman/assets/index.js", status=200))
+        log, stream = access(dashboard_path="/__sillo/vise")
+        log.write(RequestEvent(path="/__sillo/vise/assets/index.js", status=200))
         assert stream.getvalue() == ""
 
     def test_it_can_be_asked_to(self):
-        log, stream = access(dashboard_path="/__sillo/foreman", static=True)
-        log.write(RequestEvent(path="/__sillo/foreman/assets/index.js", status=200))
+        log, stream = access(dashboard_path="/__sillo/vise", static=True)
+        log.write(RequestEvent(path="/__sillo/vise/assets/index.js", status=200))
         assert "index.js" in plain(stream)
 
     def test_application_requests_are_never_suppressed(self):
-        log, stream = access(dashboard_path="/__sillo/foreman")
+        log, stream = access(dashboard_path="/__sillo/vise")
         log.write(RequestEvent(path="/api/v1/documents", status=200))
         assert "/api/v1/documents" in plain(stream)
 
@@ -285,7 +285,7 @@ class TestBanner:
             version="0.1.0",
             framework="0.2.1",
             python="3.12",
-            links=[("Local", "A"), ("Foreman", "B"), ("App", "C")],
+            links=[("Local", "A"), ("Vise", "B"), ("App", "C")],
         )
         rows = [line for line in stream.getvalue().splitlines() if "➜" in line]
         assert (

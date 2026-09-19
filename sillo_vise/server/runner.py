@@ -99,7 +99,7 @@ class Server:
         rows = [("Local", f"http://{host}:{server.port}")]
 
         if self.installation and self.installation.dashboard_url:
-            rows.append(("Foreman", self.installation.dashboard_url))
+            rows.append(("Vise", self.installation.dashboard_url))
 
         rows.append(("App", self.target or "the application"))
 

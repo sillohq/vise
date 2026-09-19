@@ -14,7 +14,7 @@ import { App } from './App'
 import './theme.css'
 import './app.css'
 
-const mount = document.getElementById('foreman')
+const mount = document.getElementById('vise')
 
 if (mount) {
   createRoot(mount).render(

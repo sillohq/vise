@@ -1,5 +1,5 @@
 /**
- * The sidebar, grouped as the Foreman page groups it.
+ * The sidebar, grouped as the Vise page groups it.
  *
  * Groups arrive from the server already filtered: a group with no live panels
  * is not sent, and a panel whose watcher is not collecting is not in it. So this

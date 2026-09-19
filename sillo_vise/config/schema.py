@@ -79,7 +79,7 @@ class ServerConfig:
 
             Uvicorn's own default is to wait forever, which is why Ctrl-C used
             to look ignored: the dashboard parks a server-sent event stream for
-            up to ten minutes, and a browser left on the Foreman tab is enough
+            up to ten minutes, and a browser left on the Vise tab is enough
             to hold the whole process open.
 
             One second, because this is a development server. There is no
@@ -103,7 +103,7 @@ class ServerConfig:
 
 @dataclasses.dataclass(frozen=True)
 class DashboardConfig:
-    """Whether Foreman is mounted, where, and who may reach it.
+    """Whether Vise is mounted, where, and who may reach it.
 
     Attributes:
         enabled: Mount the dashboard at all.
@@ -117,7 +117,7 @@ class DashboardConfig:
     """
 
     enabled: bool = True
-    path: str = "/__sillo/foreman"
+    path: str = "/__sillo/vise"
     access: str = "local"
     token: str | None = None
     title: str | None = None
@@ -227,7 +227,7 @@ class ViseConfig:
     Attributes:
         app: Where the application is.
         server: How it is served.
-        dashboard: Whether Foreman is mounted, and to whom.
+        dashboard: Whether Vise is mounted, and to whom.
         recorder: What is collected.
         logs: How the server talks.
         panels: Which panels may appear.

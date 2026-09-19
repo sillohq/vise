@@ -98,7 +98,7 @@ class DashboardAPI:
             },
             "dashboard": {
                 "path": self.config.dashboard.path,
-                "title": self.config.dashboard.title or "Foreman",
+                "title": self.config.dashboard.title or "Vise",
                 "refresh_ms": self.config.panels.refresh_ms,
             },
             "groups": self.panels.sidebar(),
